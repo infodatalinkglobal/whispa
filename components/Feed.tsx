@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { ACTIVE_CAMPUSES, CAMPUSES, SINGLE_CAMPUS, type Confession } from "@/lib/constants";
+import { rankHot } from "@/lib/ranking";
 import { generateRecoveryCode } from "@/lib/recovery";
 import BottomSheet from "./BottomSheet";
 import ConfessionCard from "./ConfessionCard";
@@ -15,6 +16,9 @@ import Pills, { ALL } from "./Pills";
 import RecoveryCodeCard from "./RecoveryCodeCard";
 
 const CAMPUS_KEY = "whispa_campus";
+const SORT_KEY = "whispa_sort";
+
+type Sort = "hot" | "new";
 
 export default function Feed() {
   const router = useRouter();
@@ -27,6 +31,8 @@ export default function Feed() {
   // With one open campus the feed is locked to it; otherwise it starts on "All".
   const [campus, setCampus] = useState<string>(SINGLE_CAMPUS ? ACTIVE_CAMPUSES[0] : ALL);
   const [ready, setReady] = useState(false);
+  // Hot (the default) puts the best and freshest posts first; New is strictly newest first.
+  const [sort, setSort] = useState<Sort>("hot");
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [myVotes, setMyVotes] = useState<Record<string, "up" | "down">>({});
   const [myReports, setMyReports] = useState<Set<string>>(new Set());
@@ -40,15 +46,32 @@ export default function Feed() {
 
   const goLogin = useCallback(() => router.push("/login"), [router]);
 
-  // Remember the last campus this device picked.
+  // Remember the last campus and sort this device picked.
   useEffect(() => {
-    if (SINGLE_CAMPUS) return setReady(true);
     try {
-      const saved = localStorage.getItem(CAMPUS_KEY);
-      if (saved && (saved === ALL || (CAMPUSES as readonly string[]).includes(saved))) setCampus(saved);
+      if (localStorage.getItem(SORT_KEY) === "new") setSort("new");
+      if (!SINGLE_CAMPUS) {
+        const saved = localStorage.getItem(CAMPUS_KEY);
+        if (saved && (saved === ALL || (CAMPUSES as readonly string[]).includes(saved))) setCampus(saved);
+      }
     } catch {}
     setReady(true);
   }, []);
+
+  function pickSort(next: Sort) {
+    setSort(next);
+    try {
+      localStorage.setItem(SORT_KEY, next);
+    } catch {}
+  }
+
+  // In Hot, a post the student just sent stays at the top for this visit, so they see it appear.
+  const ordered = useMemo(() => {
+    if (!items) return null;
+    if (sort === "new") return items;
+    const ranked = rankHot(items);
+    return [...ranked.filter((c) => fresh.has(c.id)), ...ranked.filter((c) => !fresh.has(c.id))];
+  }, [items, sort, fresh]);
 
   // This account's own votes and reports (private to the account).
   useEffect(() => {
@@ -198,8 +221,31 @@ export default function Feed() {
           </div>
         )}
 
+        {items && items.length > 1 && (
+          <div className="mb-3 flex gap-2" role="tablist" aria-label="Sort confessions">
+            {(
+              [
+                ["hot", "🔥 Hot"],
+                ["new", "New"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                role="tab"
+                aria-selected={sort === value}
+                onClick={() => pickSort(value)}
+                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+                  sort === value ? "border-accent bg-accent text-white" : "border-[#eaeaea] bg-white text-[#555]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-3">
-          {items?.map((c, i) => (
+          {ordered?.map((c, i) => (
             <ConfessionCard
               key={c.id}
               confession={c}
