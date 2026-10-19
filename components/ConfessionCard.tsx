@@ -33,7 +33,7 @@ export default function ConfessionCard({
   const [mine, setMine] = useState<Dir | null>(myVote);
   const [pop, setPop] = useState<Dir | null>(null);
   const [showComments, setShowComments] = useState(false);
-  const [commentCount, setCommentCount] = useState(confession.comments?.[0]?.count ?? 0);
+  const [commentCount, setCommentCount] = useState(confession.comment_count ?? 0);
   const [expanded, setExpanded] = useState(false);
 
   // The account's saved vote loads after the feed does, and clears on log out.

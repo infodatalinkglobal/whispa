@@ -29,7 +29,7 @@ export type Confession = {
   upvotes: number;
   downvotes: number;
   created_at: string;
-  comments?: { count: number }[];
+  comment_count?: number;
 };
 
 export type Comment = {

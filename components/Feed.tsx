@@ -70,7 +70,7 @@ export default function Feed() {
     async (markNew: boolean) => {
       let q = supabase
         .from("confessions")
-        .select("id, content, campus, category, upvotes, downvotes, created_at, comments(count)")
+        .select("id, content, campus, category, upvotes, downvotes, created_at, comment_count")
         .eq("is_approved", true)
         .order("created_at", { ascending: false })
         .limit(100);
