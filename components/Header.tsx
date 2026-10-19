@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ACTIVE_CAMPUSES, SINGLE_CAMPUS } from "@/lib/constants";
 import { ALL, PILL_OPTIONS, shortName } from "./Pills";
 
 type Menu = null | "campus" | "user";
@@ -33,17 +34,24 @@ export default function Header({
       </h1>
 
       <div className="flex items-center gap-2">
-        <button
-          onClick={() => toggle("campus")}
-          aria-haspopup="listbox"
-          aria-expanded={menu === "campus"}
-          className="flex items-center gap-1 rounded-full border border-[#eaeaea] bg-white px-3.5 py-1.5 text-sm font-medium text-ink transition active:scale-95"
-        >
-          {campus === ALL ? "All campuses" : shortName(campus)}
-          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" aria-hidden="true">
-            <path d="M5.5 7.5 10 12l4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+        {SINGLE_CAMPUS ? (
+          // One campus open: show it as a plain label, not a picker.
+          <span className="rounded-full border border-accent/40 bg-accent/10 px-3.5 py-1.5 text-sm font-semibold text-accent-dark">
+            {shortName(ACTIVE_CAMPUSES[0])}
+          </span>
+        ) : (
+          <button
+            onClick={() => toggle("campus")}
+            aria-haspopup="listbox"
+            aria-expanded={menu === "campus"}
+            className="flex items-center gap-1 rounded-full border border-[#eaeaea] bg-white px-3.5 py-1.5 text-sm font-medium text-ink transition active:scale-95"
+          >
+            {campus === ALL ? "All campuses" : shortName(campus)}
+            <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 text-muted" fill="none" aria-hidden="true">
+              <path d="M5.5 7.5 10 12l4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
 
         <button
           onClick={() => (loggedIn ? toggle("user") : onLogin())}

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { CAMPUSES, type Confession } from "@/lib/constants";
+import { ACTIVE_CAMPUSES, CAMPUSES, SINGLE_CAMPUS, type Confession } from "@/lib/constants";
 import { generateRecoveryCode } from "@/lib/recovery";
 import BottomSheet from "./BottomSheet";
 import ConfessionCard from "./ConfessionCard";
@@ -23,7 +23,8 @@ export default function Feed() {
   const [items, setItems] = useState<Confession[] | null>(null);
   const [error, setError] = useState(false);
   const [open, setOpen] = useState(false);
-  const [campus, setCampus] = useState<string>(ALL);
+  // With one open campus the feed is locked to it; otherwise it starts on "All".
+  const [campus, setCampus] = useState<string>(SINGLE_CAMPUS ? ACTIVE_CAMPUSES[0] : ALL);
   const [ready, setReady] = useState(false);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [myVotes, setMyVotes] = useState<Record<string, "up" | "down">>({});
@@ -36,6 +37,7 @@ export default function Feed() {
 
   // Remember the last campus this device picked.
   useEffect(() => {
+    if (SINGLE_CAMPUS) return setReady(true);
     try {
       const saved = localStorage.getItem(CAMPUS_KEY);
       if (saved && (saved === ALL || (CAMPUSES as readonly string[]).includes(saved))) setCampus(saved);
@@ -136,9 +138,11 @@ export default function Feed() {
           onSignOut={signOut}
           onNewCode={makeRecoveryCode}
         />
-        <div className="mx-auto max-w-[560px]">
-          <Pills value={campus} onChange={pick} />
-        </div>
+        {!SINGLE_CAMPUS && (
+          <div className="mx-auto max-w-[560px]">
+            <Pills value={campus} onChange={pick} />
+          </div>
+        )}
       </div>
 
       <div className="mx-auto max-w-[560px] px-4 pb-32 pt-4">

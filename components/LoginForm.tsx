@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { MIN_PASSWORD, USERNAME_RE, useAuth } from "@/lib/auth";
-import { CAMPUSES, CAMPUS_SHORT } from "@/lib/constants";
+import { ACTIVE_CAMPUSES, CAMPUSES, CAMPUS_SHORT, SINGLE_CAMPUS } from "@/lib/constants";
+import { shortName } from "./Pills";
 import { generateRecoveryCode } from "@/lib/recovery";
 import RecoveryCodeCard from "./RecoveryCodeCard";
 
@@ -18,7 +19,7 @@ export default function LoginForm() {
   const [mode, setMode] = useState<Mode>("signup");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [campus, setCampus] = useState<string>("ATU");
+  const [campus, setCampus] = useState<string>(ACTIVE_CAMPUSES[0]);
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -56,10 +57,12 @@ export default function LoginForm() {
       setBusy(false);
       return setError(err);
     }
-    // New members land on their own campus feed.
-    try {
-      localStorage.setItem(CAMPUS_KEY, campus);
-    } catch {}
+    // New members land on their own campus feed (only matters when several campuses are open).
+    if (!SINGLE_CAMPUS) {
+      try {
+        localStorage.setItem(CAMPUS_KEY, campus);
+      } catch {}
+    }
 
     const code = generateRecoveryCode();
     const { error: codeError } = await supabase.rpc("set_recovery_code", { p_code: code });
@@ -105,9 +108,9 @@ export default function LoginForm() {
         <h1 className="mt-6 font-display text-[44px] font-bold leading-[1.02] tracking-tight text-ink">
           {mode === "signup" ? (
             <>
-              Join your
+              Join
               <br />
-              <span className="text-accent-dark">campus.</span>
+              <span className="text-accent-dark">{SINGLE_CAMPUS ? `${shortName(ACTIVE_CAMPUSES[0])}.` : "your campus."}</span>
             </>
           ) : (
             <>
@@ -156,11 +159,11 @@ export default function LoginForm() {
             </button>
           </div>
 
-          {mode === "signup" && (
+          {mode === "signup" && !SINGLE_CAMPUS && (
             <div className="pt-2">
               <p className="mb-2 px-1 text-sm font-medium text-muted">Which campus are you at?</p>
               <div className="flex flex-wrap gap-2">
-                {CAMPUSES.map((c) => (
+                {CAMPUSES.filter((c) => ACTIVE_CAMPUSES.includes(c)).map((c) => (
                   <button
                     key={c}
                     type="button"

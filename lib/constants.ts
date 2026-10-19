@@ -1,5 +1,10 @@
 export const CAMPUSES = ["ATU", "UG Legon", "KNUST", "UCC", "Ashesi", "UPSA", "GCTU", "Other"] as const;
 
+// Campuses open for posting right now. With a single campus the app hides every campus choice.
+// To open more campuses later, add them here and update the database insert policy to match.
+export const ACTIVE_CAMPUSES: readonly string[] = ["ATU"];
+export const SINGLE_CAMPUS = ACTIVE_CAMPUSES.length === 1;
+
 export const CATEGORIES = [
   { name: "Relationships", emoji: "💔" },
   { name: "Academics", emoji: "📚" },

@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { CAMPUSES, CATEGORIES } from "@/lib/constants";
+import { ACTIVE_CAMPUSES, CAMPUSES, CATEGORIES, SINGLE_CAMPUS } from "@/lib/constants";
 
 const MAX = 500;
 
 // Lives inside a BottomSheet.
 export default function ConfessionForm({ onClose, onPosted }: { onClose: () => void; onPosted: () => void }) {
   const [content, setContent] = useState("");
-  const [campus, setCampus] = useState<string>(CAMPUSES[0]);
+  const [campus, setCampus] = useState<string>(ACTIVE_CAMPUSES[0]);
   const [category, setCategory] = useState<string>(CATEGORIES[0].name);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -62,14 +62,16 @@ export default function ConfessionForm({ onClose, onPosted }: { onClose: () => v
       <p className="text-right text-xs tabular-nums text-muted">
         {content.length}/{MAX}
       </p>
-      <div className="grid grid-cols-2 gap-3">
-        <select value={campus} onChange={(e) => setCampus(e.target.value)} className={field} aria-label="Campus">
-          {CAMPUSES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
+      <div className={SINGLE_CAMPUS ? "" : "grid grid-cols-2 gap-3"}>
+        {!SINGLE_CAMPUS && (
+          <select value={campus} onChange={(e) => setCampus(e.target.value)} className={field} aria-label="Campus">
+            {CAMPUSES.filter((c) => ACTIVE_CAMPUSES.includes(c)).map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
         <select value={category} onChange={(e) => setCategory(e.target.value)} className={field} aria-label="Category">
           {CATEGORIES.map((c) => (
             <option key={c.name} value={c.name}>
