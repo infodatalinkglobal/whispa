@@ -14,7 +14,7 @@ export default function Feed() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("confessions")
-      .select("id, content, campus, category, upvotes, downvotes, created_at")
+      .select("id, content, campus, category, upvotes, downvotes, created_at, comments(count)")
       .eq("is_approved", true)
       .order("created_at", { ascending: false })
       .limit(100);

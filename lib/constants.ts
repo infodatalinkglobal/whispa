@@ -18,6 +18,13 @@ export type Confession = {
   upvotes: number;
   downvotes: number;
   created_at: string;
+  comments?: { count: number }[];
+};
+
+export type Comment = {
+  id: string;
+  content: string;
+  created_at: string;
 };
 
 export function timeAgo(iso: string): string {

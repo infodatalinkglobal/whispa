@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Comments from "./Comments";
 import { CATEGORIES, timeAgo, whatsappLink, type Confession } from "@/lib/constants";
 
 type Dir = "up" | "down";
@@ -25,6 +26,8 @@ export default function ConfessionCard({ confession }: { confession: Confession 
   const [up, setUp] = useState(confession.upvotes);
   const [down, setDown] = useState(confession.downvotes);
   const [mine, setMine] = useState<Dir | null>(null);
+  const [showComments, setShowComments] = useState(false);
+  const [commentCount, setCommentCount] = useState(confession.comments?.[0]?.count ?? 0);
 
   useEffect(() => {
     setMine(readVotes()[confession.id] ?? null);
@@ -85,6 +88,13 @@ export default function ConfessionCard({ confession }: { confession: Confession 
         >
           👎 {down}
         </button>
+        <button
+          onClick={() => setShowComments((s) => !s)}
+          aria-expanded={showComments}
+          className="rounded-full border border-white/15 px-3 py-1.5 text-sm text-gray-300"
+        >
+          💬 {commentCount}
+        </button>
         <a
           href={whatsappLink(confession.campus, confession.content)}
           target="_blank"
@@ -97,6 +107,7 @@ export default function ConfessionCard({ confession }: { confession: Confession 
           Share on WhatsApp 💬
         </a>
       </div>
+      {showComments && <Comments confessionId={confession.id} onAdded={() => setCommentCount((n) => n + 1)} />}
     </article>
   );
 }
