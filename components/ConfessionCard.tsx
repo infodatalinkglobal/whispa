@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Comments from "./Comments";
+import ShareImageButton from "./ShareImageButton";
 import ShareLink from "./ShareLink";
 import { CAMPUS_SHORT, CATEGORIES, CATEGORY_STYLES, timeAgo, type Confession } from "@/lib/constants";
 
@@ -171,7 +172,8 @@ export default function ConfessionCard({
           </svg>
           <span className="tabular-nums">{commentCount}</span>
         </button>
-        <span className="ml-auto">
+        <span className="ml-auto flex items-center gap-2">
+          <ShareImageButton confessionId={confession.id} />
           <ShareLink campus={confession.campus} content={confession.content} />
         </span>
       </div>
