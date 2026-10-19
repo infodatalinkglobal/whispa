@@ -5,8 +5,6 @@ import { supabase } from "@/lib/supabase";
 import { CAMPUSES, CATEGORIES } from "@/lib/constants";
 
 const MAX = 500;
-const COOLDOWN_MS = 30_000;
-const LAST_KEY = "whispa_last_post";
 
 export default function ConfessionForm({ onClose, onPosted }: { onClose: () => void; onPosted: () => void }) {
   const [content, setContent] = useState("");
@@ -20,20 +18,18 @@ export default function ConfessionForm({ onClose, onPosted }: { onClose: () => v
     const text = content.trim();
     if (text.length < 3) return setError("Write a bit more first.");
 
-    // Simple per-device rate limit (no login yet).
-    try {
-      const last = Number(localStorage.getItem(LAST_KEY) || 0);
-      if (Date.now() - last < COOLDOWN_MS) return setError("Slow down. Wait a few seconds before posting again.");
-    } catch {}
-
     setBusy(true);
     setError("");
     const { error } = await supabase.from("confessions").insert({ content: text, campus, category });
     setBusy(false);
-    if (error) return setError("Couldn't send. Try again.");
-    try {
-      localStorage.setItem(LAST_KEY, String(Date.now()));
-    } catch {}
+    if (error) {
+      // The database limits each account to one post every 30 seconds.
+      return setError(
+        error.message.includes("too_fast")
+          ? "Slow down. Wait a few seconds before posting again."
+          : "Couldn't send. Try again."
+      );
+    }
     onPosted();
   }
 

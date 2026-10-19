@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
+import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -15,7 +16,9 @@ export const viewport: Viewport = { themeColor: "#080808", width: "device-width"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${grotesk.variable}`}>
-      <body className="bg-base font-sans text-ink antialiased">{children}</body>
+      <body className="bg-base font-sans text-ink antialiased">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

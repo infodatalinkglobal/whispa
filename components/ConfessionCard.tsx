@@ -6,99 +6,80 @@ import Comments from "./Comments";
 import { CAMPUS_SHORT, CATEGORIES, CATEGORY_COLORS, timeAgo, whatsappLink, type Confession } from "@/lib/constants";
 
 type Dir = "up" | "down";
-const KEY = "whispa_votes";
-const REPORT_KEY = "whispa_reported";
 const LONG = 280;
 const HOT_SCORE = 5;
-
-function readVotes(): Record<string, Dir> {
-  try {
-    return JSON.parse(localStorage.getItem(KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-function writeVotes(v: Record<string, Dir>) {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(v));
-  } catch {}
-}
-
-function readReported(): string[] {
-  try {
-    return JSON.parse(localStorage.getItem(REPORT_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
 
 export default function ConfessionCard({
   confession,
   isNew,
   index,
+  loggedIn,
+  onNeedLogin,
+  myVote,
+  reported,
+  onReported,
 }: {
   confession: Confession;
   isNew: boolean;
   index: number;
+  loggedIn: boolean;
+  onNeedLogin: () => void;
+  myVote: Dir | null;
+  reported: boolean;
+  onReported: () => void;
 }) {
   const [up, setUp] = useState(confession.upvotes);
   const [down, setDown] = useState(confession.downvotes);
-  const [mine, setMine] = useState<Dir | null>(null);
+  const [mine, setMine] = useState<Dir | null>(myVote);
   const [pop, setPop] = useState<Dir | null>(null);
   const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState(confession.comments?.[0]?.count ?? 0);
-  const [reported, setReported] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
+  // The account's saved vote loads after the feed does, and clears on log out.
   useEffect(() => {
-    setMine(readVotes()[confession.id] ?? null);
-    setReported(readReported().includes(confession.id));
-  }, [confession.id]);
+    setMine(myVote);
+  }, [myVote]);
 
   const emoji = CATEGORIES.find((c) => c.name === confession.category)?.emoji ?? "";
   const color = CATEGORY_COLORS[confession.category] ?? "#7B61FF";
   const long = confession.content.length > LONG;
   const hot = up - down >= HOT_SCORE;
 
-  async function rpc(column: Dir, delta: 1 | -1) {
-    await supabase.rpc("vote_confession", { p_id: confession.id, p_column: column, p_delta: delta });
-  }
-
   async function report() {
+    if (!loggedIn) return onNeedLogin();
     if (reported) return;
     if (!window.confirm("Report this post as harmful or inappropriate?")) return;
-    setReported(true);
-    try {
-      localStorage.setItem(REPORT_KEY, JSON.stringify([...readReported(), confession.id]));
-    } catch {}
+    onReported();
     await supabase.rpc("report_confession", { p_id: confession.id });
   }
 
-  // One vote per device: tapping again removes it; tapping the other side switches it.
-  function vote(dir: Dir) {
-    const votes = readVotes();
-    const prev = votes[confession.id] ?? null;
-    const bump = (d: Dir, n: 1 | -1) => (d === "up" ? setUp((x) => x + n) : setDown((x) => x + n));
+  // Moves this account's vote from `from` to `to` in the on-screen counts.
+  function shift(from: Dir | null, to: Dir | null) {
+    const bump = (d: Dir | null, n: 1 | -1) => {
+      if (d === "up") setUp((x) => x + n);
+      if (d === "down") setDown((x) => x + n);
+    };
+    bump(from, -1);
+    bump(to, 1);
+  }
 
-    if (prev === dir) {
-      bump(dir, -1);
-      rpc(dir, -1);
-      delete votes[confession.id];
-      setMine(null);
-    } else {
-      if (prev) {
-        bump(prev, -1);
-        rpc(prev, -1);
-      }
-      bump(dir, 1);
-      rpc(dir, 1);
-      votes[confession.id] = dir;
-      setMine(dir);
-      setPop(dir);
+  // One vote per account: tapping again removes it; tapping the other side switches it.
+  async function vote(dir: Dir) {
+    if (!loggedIn) return onNeedLogin();
+    const prev = mine;
+    const next = prev === dir ? null : dir;
+    shift(prev, next);
+    setMine(next);
+    if (next) {
+      setPop(next);
       setTimeout(() => setPop(null), 400);
     }
-    writeVotes(votes);
+    const { error } = await supabase.rpc("vote_confession", { p_id: confession.id, p_direction: next });
+    if (error) {
+      shift(next, prev);
+      setMine(prev);
+    }
   }
 
   const score = up - down;
