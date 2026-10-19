@@ -7,6 +7,8 @@ import { useAuth } from "@/lib/auth";
 import { CAMPUSES, CAMPUS_SHORT, type Confession } from "@/lib/constants";
 import ConfessionCard from "./ConfessionCard";
 import ConfessionForm from "./ConfessionForm";
+import RecoveryCodeCard from "./RecoveryCodeCard";
+import { generateRecoveryCode } from "@/lib/recovery";
 
 const ALL = "All";
 const CAMPUS_KEY = "whispa_campus";
@@ -30,6 +32,17 @@ export default function Feed() {
   const [myVotes, setMyVotes] = useState<Record<string, "up" | "down">>({});
   const [myReports, setMyReports] = useState<Set<string>>(new Set());
   const known = useRef<Set<string> | null>(null);
+  const [newCode, setNewCode] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState(false);
+
+  async function makeRecoveryCode() {
+    setMenu(null);
+    setCodeError(false);
+    const code = generateRecoveryCode();
+    const { error } = await supabase.rpc("set_recovery_code", { p_code: code });
+    if (error) return setCodeError(true);
+    setNewCode(code);
+  }
 
   const goLogin = useCallback(() => router.push("/login"), [router]);
 
@@ -190,6 +203,13 @@ export default function Feed() {
                 <p className="truncate px-3 pb-2 text-sm font-semibold text-ink">@{username}</p>
                 <button
                   role="menuitem"
+                  onClick={makeRecoveryCode}
+                  className="w-full rounded-xl px-3 py-2 text-left text-sm text-ink hover:bg-white/5"
+                >
+                  New recovery code
+                </button>
+                <button
+                  role="menuitem"
                   onClick={async () => {
                     setMenu(null);
                     await signOut();
@@ -267,6 +287,26 @@ export default function Feed() {
       >
         🤫 Whispa
       </button>
+
+      {(newCode || codeError) && (
+        <div className="fixed inset-0 z-40 flex animate-fade-in items-center justify-center bg-black/85 px-4 backdrop-blur-sm">
+          <div className="max-h-full w-full max-w-sm overflow-y-auto rounded-3xl border border-line bg-base p-5">
+            {newCode ? (
+              <RecoveryCodeCard code={newCode} actionLabel="Done" onDone={() => setNewCode(null)} />
+            ) : (
+              <>
+                <p className="text-sm text-hot">Couldn&apos;t create a recovery code. Try again.</p>
+                <button
+                  onClick={() => setCodeError(false)}
+                  className="mt-4 w-full rounded-full border border-line py-3 text-sm text-ink"
+                >
+                  Close
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {open && (
         <ConfessionForm

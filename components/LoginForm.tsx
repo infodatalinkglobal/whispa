@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { MIN_PASSWORD, USERNAME_RE, useAuth } from "@/lib/auth";
 import { CAMPUSES, CAMPUS_SHORT } from "@/lib/constants";
+import { generateRecoveryCode } from "@/lib/recovery";
+import RecoveryCodeCard from "./RecoveryCodeCard";
 
 type Mode = "login" | "signup";
 const CAMPUS_KEY = "whispa_campus";
@@ -19,9 +22,12 @@ export default function LoginForm() {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [codeToShow, setCodeToShow] = useState<string | null>(null);
+  // Stops the "already logged in" redirect while the new member is saving their recovery code.
+  const holdRedirect = useRef(false);
 
   useEffect(() => {
-    if (ready && session) router.replace("/");
+    if (ready && session && !holdRedirect.current) router.replace("/");
   }, [ready, session, router]);
 
   async function submit(e: React.FormEvent) {
@@ -36,20 +42,53 @@ export default function LoginForm() {
     if (!password) return setError("Enter your password.");
 
     setBusy(true);
-    const err = mode === "login" ? await signIn(username, password) : await signUp(username, password);
-    setBusy(false);
-    if (err) return setError(err);
-    // New members land on their own campus feed.
-    if (mode === "signup") {
-      try {
-        localStorage.setItem(CAMPUS_KEY, campus);
-      } catch {}
+    if (mode === "login") {
+      const err = await signIn(username, password);
+      setBusy(false);
+      if (err) return setError(err);
+      return router.replace("/");
     }
-    router.replace("/");
+
+    holdRedirect.current = true;
+    const err = await signUp(username, password);
+    if (err) {
+      holdRedirect.current = false;
+      setBusy(false);
+      return setError(err);
+    }
+    // New members land on their own campus feed.
+    try {
+      localStorage.setItem(CAMPUS_KEY, campus);
+    } catch {}
+
+    const code = generateRecoveryCode();
+    const { error: codeError } = await supabase.rpc("set_recovery_code", { p_code: code });
+    setBusy(false);
+    if (codeError) {
+      // The account exists; the member can create a recovery code later from the account menu.
+      holdRedirect.current = false;
+      return router.replace("/");
+    }
+    setCodeToShow(code);
   }
 
   const field =
     "w-full rounded-full border border-line bg-card px-6 py-4 text-[17px] text-ink outline-none transition placeholder:text-muted focus:border-accent";
+
+  if (codeToShow) {
+    return (
+      <div className="w-full max-w-sm">
+        <RecoveryCodeCard
+          code={codeToShow}
+          actionLabel="Continue to Whispa"
+          onDone={() => {
+            holdRedirect.current = false;
+            router.replace("/");
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full max-w-sm animate-fade-up">
@@ -138,6 +177,14 @@ export default function LoginForm() {
                 ))}
               </div>
             </div>
+          )}
+
+          {mode === "login" && (
+            <p className="px-2 text-right text-sm">
+              <Link href="/reset" className="text-muted hover:text-accent">
+                Forgot password?
+              </Link>
+            </p>
           )}
 
           {error && (
