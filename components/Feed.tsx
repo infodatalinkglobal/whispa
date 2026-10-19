@@ -71,9 +71,9 @@ export default function Feed() {
 
   return (
     <>
-      <div className="sticky top-0 z-30 bg-base/75 backdrop-blur-xl">
-        <div className="border-b border-accent/60">
-          <div className="relative mx-auto flex h-16 max-w-xl items-center justify-between px-4">
+      <div className="sticky top-0 z-30 bg-gradient-to-b from-base via-base/90 to-transparent pb-1 pt-3 backdrop-blur-md">
+        <div className="mx-auto max-w-xl px-3">
+          <div className="relative flex h-16 items-center justify-between rounded-full border border-line border-b-accent/70 bg-card/80 px-5 shadow-[0_8px_30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
             <div>
               <h1 className="font-display text-[26px] font-bold italic leading-none tracking-tight text-ink">
                 Whispa <span className="text-xl not-italic">🤫</span>
@@ -98,7 +98,7 @@ export default function Feed() {
                 <div className="fixed inset-0 z-10" onClick={() => setMenu(false)} />
                 <ul
                   role="listbox"
-                  className="absolute right-4 top-14 z-20 w-44 animate-fade-in rounded-2xl border border-line bg-card p-1.5 shadow-2xl shadow-black"
+                  className="absolute right-2 top-[72px] z-20 w-44 animate-fade-in rounded-2xl border border-line bg-card p-1.5 shadow-2xl shadow-black"
                 >
                   {[ALL, ...CAMPUSES].map((c) => (
                     <li key={c}>
@@ -120,7 +120,7 @@ export default function Feed() {
           </div>
         </div>
 
-        <div className="border-b border-line">
+        <div>
           <div className="no-scrollbar mx-auto flex max-w-xl gap-2 overflow-x-auto px-4 py-3">
             {FILTERS.map((c) => (
               <button

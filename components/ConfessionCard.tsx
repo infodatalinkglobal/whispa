@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Comments from "./Comments";
-import { CATEGORIES, CATEGORY_COLORS, timeAgo, whatsappLink, type Confession } from "@/lib/constants";
+import { CAMPUS_SHORT, CATEGORIES, CATEGORY_COLORS, timeAgo, whatsappLink, type Confession } from "@/lib/constants";
 
 type Dir = "up" | "down";
 const KEY = "whispa_votes";
@@ -101,21 +101,23 @@ export default function ConfessionCard({
     writeVotes(votes);
   }
 
-  const voteBtn = (dir: Dir, emoji: string, count: number) => (
+  const score = up - down;
+  const chevron = (dir: Dir) => (
     <button
       onClick={() => vote(dir)}
       aria-pressed={mine === dir}
       aria-label={dir === "up" ? "Upvote" : "Downvote"}
-      className={`flex items-center gap-1.5 text-sm transition active:scale-90 ${
+      className={`flex h-7 w-9 items-center justify-center rounded-lg transition active:scale-90 ${
         mine === dir ? (dir === "up" ? "text-accent" : "text-hot") : "text-muted hover:text-ink"
       }`}
     >
-      <span className={`inline-block ${pop === dir ? "animate-pop" : ""} ${mine && mine !== dir ? "opacity-50 grayscale" : ""}`}>
-        {emoji}
-      </span>
-      <span className="tabular-nums">{count}</span>
+      <svg viewBox="0 0 20 20" className={`h-5 w-5 ${dir === "down" ? "rotate-180" : ""}`} fill="none" aria-hidden="true">
+        <path d="M5 12.5 10 7.5l5 5" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   );
+
+  const initials = (CAMPUS_SHORT[confession.campus] ?? confession.campus).slice(0, 2).toUpperCase();
 
   return (
     <article
@@ -124,21 +126,37 @@ export default function ConfessionCard({
         borderLeftWidth: 3,
         animationDelay: isNew ? undefined : `${Math.min(index, 8) * 45}ms`,
       }}
-      className={`rounded-2xl border border-line bg-card px-4 pb-3 pt-4 ${isNew ? "animate-slide-down" : "animate-fade-up"}`}
+      className={`rounded-3xl border border-line bg-card px-4 pb-3 pt-4 ${isNew ? "animate-slide-down" : "animate-fade-up"}`}
     >
-      <div className="mb-3 flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-iris/15 px-2.5 py-1 text-xs font-medium text-[#A596FF]">
-          <span aria-hidden="true">{emoji}</span>
-          {confession.category}
-        </span>
-        {hot && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-hot/15 px-2.5 py-1 text-xs font-semibold text-hot">
-            🔥 Hot
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span
+            style={{ backgroundColor: `${color}26`, color }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold"
+            aria-hidden="true"
+          >
+            {initials}
           </span>
-        )}
+          <div className="min-w-0 leading-tight">
+            <p className="truncate font-display text-[15px] font-bold text-ink">{confession.campus}</p>
+            <p className="mt-0.5 text-xs text-muted">Anonymous • {timeAgo(confession.created_at)}</p>
+          </div>
+        </div>
+
+        <div className="-mt-1 flex shrink-0 flex-col items-center">
+          {chevron("up")}
+          <span
+            className={`font-display text-base font-bold tabular-nums leading-none ${pop ? "animate-pop" : ""} ${
+              mine === "up" ? "text-accent" : mine === "down" ? "text-hot" : "text-ink"
+            }`}
+          >
+            {score}
+          </span>
+          {chevron("down")}
+        </div>
       </div>
 
-      <div className={`relative ${long && !expanded ? "max-h-44 overflow-hidden" : ""}`}>
+      <div className={`relative mt-3 ${long && !expanded ? "max-h-44 overflow-hidden" : ""}`}>
         <p className="whitespace-pre-wrap break-words text-[18px] leading-[1.55] text-ink">{confession.content}</p>
         {long && !expanded && (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card via-card/80 to-transparent" />
@@ -150,27 +168,38 @@ export default function ConfessionCard({
         </button>
       )}
 
-      <p className="mt-3 flex items-center gap-1.5 text-xs text-muted">
-        <span>Anonymous</span>
-        <span aria-hidden="true">•</span>
-        <span>{confession.campus}</span>
-        <span aria-hidden="true">•</span>
-        <span>{timeAgo(confession.created_at)}</span>
-      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-iris/15 px-2.5 py-1 text-xs font-medium text-[#A596FF]">
+          <span aria-hidden="true">{emoji}</span>
+          {confession.category}
+        </span>
+        {hot && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-hot/15 px-2.5 py-1 text-xs font-semibold text-hot">
+            🔥 Hot
+          </span>
+        )}
+      </div>
 
-      <div className="mt-3 flex items-center gap-5 border-t border-line pt-3">
-        {voteBtn("up", "👍", up)}
-        {voteBtn("down", "👎", down)}
+      <div className="mt-3 flex items-center gap-4 border-t border-line pt-3">
         <button
           onClick={() => setShowComments((s) => !s)}
           aria-expanded={showComments}
           aria-label="Replies"
-          className={`flex items-center gap-1.5 text-sm transition active:scale-90 ${
+          className={`flex items-center gap-2 text-sm transition active:scale-95 ${
             showComments ? "text-ink" : "text-muted hover:text-ink"
           }`}
         >
-          <span>💬</span>
-          <span className="tabular-nums">{commentCount}</span>
+          <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" aria-hidden="true">
+            <path
+              d="M10 3.5c-3.6 0-6.5 2.5-6.5 5.6 0 1.7.9 3.2 2.3 4.2L5 16.5l3.3-1.5c.5.1 1.1.2 1.7.2 3.6 0 6.5-2.5 6.5-5.6S13.6 3.5 10 3.5Z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="tabular-nums">
+            {commentCount} {commentCount === 1 ? "comment" : "comments"}
+          </span>
         </button>
 
         <a
