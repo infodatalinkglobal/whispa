@@ -8,7 +8,7 @@ export const CATEGORIES = [
   { name: "Work", emoji: "🔧" },
 ] as const;
 
-export const SITE_URL = "https://whispa.vercel.app";
+export const SITE_URL = "https://whispa-nu.vercel.app";
 
 export type Confession = {
   id: string;
