@@ -10,6 +10,7 @@ import BottomSheet from "./BottomSheet";
 import ConfessionCard from "./ConfessionCard";
 import ConfessionForm from "./ConfessionForm";
 import Header from "./Header";
+import InstallPrompt from "./InstallPrompt";
 import Pills, { ALL } from "./Pills";
 import RecoveryCodeCard from "./RecoveryCodeCard";
 
@@ -146,6 +147,8 @@ export default function Feed() {
       </div>
 
       <div className="mx-auto max-w-[560px] px-4 pb-32 pt-4">
+        <InstallPrompt />
+
         {error && (
           <p className="py-10 text-center text-sm text-hot">Couldn&apos;t load confessions. Check your connection and try again.</p>
         )}

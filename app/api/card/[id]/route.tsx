@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { loadFont } from "@/lib/ogFont";
 
 export const runtime = "edge";
 
@@ -19,26 +20,6 @@ function fontSizeFor(length: number): number {
   if (length <= 220) return 72;
   if (length <= 340) return 60;
   return 50;
-}
-
-const FONT_BASE = "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.8/files";
-
-const fontCache = new Map<number, ArrayBuffer>();
-
-// Bold Inter for the card. Cached after the first load, and capped at 3 seconds so a slow font host
-// never holds the share button up: the card then falls back to the default font.
-async function loadFont(weight: 600 | 700 | 800): Promise<ArrayBuffer | null> {
-  const cached = fontCache.get(weight);
-  if (cached) return cached;
-  try {
-    const res = await fetch(`${FONT_BASE}/inter-latin-${weight}-normal.woff`, { signal: AbortSignal.timeout(3000) });
-    if (!res.ok) return null;
-    const data = await res.arrayBuffer();
-    fontCache.set(weight, data);
-    return data;
-  } catch {
-    return null;
-  }
 }
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {

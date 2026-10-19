@@ -8,6 +8,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "sw
 export const metadata: Metadata = {
   title: "Whispa — Say it. Nobody knows.",
   description: "Anonymous campus confessions for Ghana.",
+  icons: { icon: "/icons/192.png", apple: "/icons/180.png" },
+  appleWebApp: { capable: true, title: "Whispa", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = { themeColor: "#ffffff", width: "device-width", initialScale: 1 };
