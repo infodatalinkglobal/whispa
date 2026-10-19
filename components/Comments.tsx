@@ -52,32 +52,32 @@ export default function Comments({ confessionId, onAdded }: { confessionId: stri
   }
 
   return (
-    <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
-      {items === null && !error && <p className="text-sm text-gray-500">Loading…</p>}
-      {items?.length === 0 && <p className="text-sm text-gray-500">No replies yet. Say something 🤫</p>}
+    <div className="mt-3 animate-fade-in space-y-2 border-t border-line pt-3">
+      {items === null && !error && <p className="text-sm text-muted">Loading…</p>}
+      {items?.length === 0 && <p className="text-sm text-muted">No replies yet. Say something 🤫</p>}
       {items?.map((c) => (
-        <div key={c.id} className="rounded-xl bg-white/5 px-3 py-2">
-          <p className="whitespace-pre-wrap break-words text-sm text-white">{c.content}</p>
-          <p className="mt-1 text-xs text-gray-500">{timeAgo(c.created_at)}</p>
+        <div key={c.id} className="animate-fade-up rounded-xl bg-white/[0.04] px-3 py-2.5">
+          <p className="whitespace-pre-wrap break-words text-[15px] leading-snug text-ink">{c.content}</p>
+          <p className="mt-1 text-[11px] text-muted">Anonymous • {timeAgo(c.created_at)}</p>
         </div>
       ))}
-      <form onSubmit={submit} className="flex gap-2">
+      <form onSubmit={submit} className="flex gap-2 pt-1">
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={MAX}
           placeholder="Reply anonymously..."
-          className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0a0a0a] px-3 py-2 text-sm text-white outline-none focus:border-ghana"
+          className="min-w-0 flex-1 rounded-full border border-line bg-base px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent/60"
         />
         <button
           type="submit"
           disabled={busy || !text.trim()}
-          className="rounded-xl bg-ghana px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-[#04140b] transition active:scale-95 disabled:opacity-40"
         >
           Reply
         </button>
       </form>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-hot">{error}</p>}
     </div>
   );
 }

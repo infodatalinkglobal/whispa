@@ -37,11 +37,12 @@ export default function ConfessionForm({ onClose, onPosted }: { onClose: () => v
     onPosted();
   }
 
-  const field = "w-full rounded-xl border border-white/15 bg-[#0a0a0a] px-3 py-3 text-white outline-none focus:border-ghana";
+  const field =
+    "w-full rounded-xl border border-line bg-base px-4 py-3 text-ink outline-none transition placeholder:text-muted focus:border-accent/60";
 
   return (
     <div
-      className="fixed inset-0 z-20 flex items-end justify-center bg-black/70 sm:items-center"
+      className="fixed inset-0 z-40 flex animate-fade-in items-end justify-center bg-black/80 backdrop-blur-sm sm:items-center"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
@@ -49,11 +50,16 @@ export default function ConfessionForm({ onClose, onPosted }: { onClose: () => v
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xl space-y-3 rounded-t-2xl border border-white/10 bg-[#141414] p-5 sm:rounded-2xl"
+        className="w-full max-w-xl animate-sheet-up space-y-3 rounded-t-3xl border border-line bg-card p-5 pb-6 sm:rounded-3xl"
       >
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold">New Whispa</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-2xl leading-none text-gray-400">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="font-display text-xl font-bold italic">New Whispa 🤫</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-xl leading-none text-muted transition hover:bg-white/5 hover:text-ink"
+          >
             ×
           </button>
         </div>
@@ -64,30 +70,32 @@ export default function ConfessionForm({ onClose, onPosted }: { onClose: () => v
           rows={5}
           autoFocus
           placeholder="What's on your mind? Nobody will know..."
-          className={`${field} resize-none`}
+          className={`${field} resize-none text-[17px] leading-relaxed`}
         />
-        <p className="text-right text-xs text-gray-500">
+        <p className="text-right text-xs tabular-nums text-muted">
           {content.length}/{MAX}
         </p>
-        <select value={campus} onChange={(e) => setCampus(e.target.value)} className={field}>
-          {CAMPUSES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className={field}>
-          {CATEGORIES.map((c) => (
-            <option key={c.name} value={c.name}>
-              {c.name} {c.emoji}
-            </option>
-          ))}
-        </select>
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        <div className="grid grid-cols-2 gap-3">
+          <select value={campus} onChange={(e) => setCampus(e.target.value)} className={field} aria-label="Campus">
+            {CAMPUSES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className={field} aria-label="Category">
+            {CATEGORIES.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name} {c.emoji}
+              </option>
+            ))}
+          </select>
+        </div>
+        {error && <p className="text-sm text-hot">{error}</p>}
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-xl bg-ghana py-3 font-semibold text-white disabled:opacity-60"
+          className="w-full rounded-full bg-accent py-3.5 font-display text-base font-bold text-[#04140b] shadow-[0_0_28px_rgba(0,197,102,0.3)] transition active:scale-[0.98] disabled:opacity-60"
         >
           {busy ? "Sending…" : "Send Anonymously 🤫"}
         </button>

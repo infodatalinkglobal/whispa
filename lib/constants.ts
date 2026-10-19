@@ -8,6 +8,17 @@ export const CATEGORIES = [
   { name: "Work", emoji: "🔧" },
 ] as const;
 
+// Left-border colour per category, and the short campus names shown in the filter bar.
+export const CATEGORY_COLORS: Record<string, string> = {
+  Relationships: "#FF4444",
+  Academics: "#7B61FF",
+  Money: "#00C566",
+  Drama: "#FF8C00",
+  Work: "#00A8FF",
+};
+
+export const CAMPUS_SHORT: Record<string, string> = { "UG Legon": "Legon" };
+
 export const SITE_URL = "https://whispa-nu.vercel.app";
 
 export type Confession = {
