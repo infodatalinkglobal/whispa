@@ -2,8 +2,19 @@
 
 import { useState } from "react";
 
+function download(blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "whispa-confession.png";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 // Builds the confession's image card, then opens the phone's share sheet with it
-// (WhatsApp Status, class groups, etc.). Where sharing files isn't supported, it downloads the picture.
+// (WhatsApp Status, class groups, etc.). Where sharing files isn't possible, it downloads the picture.
 export default function ShareImageButton({ confessionId }: { confessionId: string }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -19,20 +30,19 @@ export default function ShareImageButton({ confessionId }: { confessionId: strin
       const file = new File([blob], "whispa-confession.png", { type: "image/png" });
 
       if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file] });
+        try {
+          await navigator.share({ files: [file] });
+        } catch (err) {
+          // Closing the share sheet is not a failure.
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // Some phones refuse to share once the image took a few seconds to build. Save it instead.
+          download(blob);
+        }
       } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "whispa-confession.png";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        download(blob);
       }
-    } catch (err) {
-      // Closing the share sheet counts as an AbortError; that's not a failure.
-      if (!(err instanceof DOMException && err.name === "AbortError")) setFailed(true);
+    } catch {
+      setFailed(true);
     } finally {
       setBusy(false);
     }

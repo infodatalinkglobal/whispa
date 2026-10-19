@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ACTIVE_CAMPUSES, SINGLE_CAMPUS } from "@/lib/constants";
 import { ALL, PILL_OPTIONS, shortName } from "./Pills";
 
@@ -26,9 +26,26 @@ export default function Header({
   const [menu, setMenu] = useState<Menu>(null);
   const toggle = (m: Exclude<Menu, null>) => setMenu((cur) => (cur === m ? null : m));
   const close = () => setMenu(null);
+  const root = useRef<HTMLDivElement>(null);
+
+  // Close an open menu when the student taps anywhere else or presses Escape. (A full-screen overlay
+  // doesn't work here: the blurred sticky header would clip it to the header's own height.)
+  useEffect(() => {
+    if (!menu) return;
+    const onDown = (e: PointerEvent) => {
+      if (!root.current?.contains(e.target as Node)) setMenu(null);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menu]);
 
   return (
-    <div className="relative mx-auto flex h-14 max-w-[560px] items-center justify-between px-4">
+    <div ref={root} className="relative mx-auto flex h-14 max-w-[560px] items-center justify-between px-4">
       <h1 className="text-[22px] font-extrabold tracking-tight text-ink">
         Whispa <span className="text-lg">🤫</span>
       </h1>
@@ -72,8 +89,6 @@ export default function Header({
           )}
         </button>
       </div>
-
-      {menu && <div className="fixed inset-0 z-10" onClick={close} />}
 
       {menu === "campus" && (
         <ul

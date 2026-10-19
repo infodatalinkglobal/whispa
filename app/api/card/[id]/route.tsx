@@ -121,7 +121,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       width: 1080,
       height: 1920,
       fonts: fonts.length ? fonts : undefined,
-      headers: { "Cache-Control": "public, max-age=3600, s-maxage=3600" },
+      // Short cache: a post that gets hidden should stop being served as an image within minutes.
+      headers: { "Cache-Control": "public, max-age=300, s-maxage=300" },
     }
   );
 }

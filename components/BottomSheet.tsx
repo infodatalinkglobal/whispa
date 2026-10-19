@@ -24,6 +24,15 @@ export default function BottomSheet({
     };
   }, [onClose]);
 
+  // Stop the page behind the sheet from scrolling while it's open.
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label={title}>
       <div

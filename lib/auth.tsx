@@ -6,6 +6,8 @@ import { supabase } from "./supabase";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 export const MIN_PASSWORD = 8;
+// bcrypt only reads the first 72 bytes of a password.
+export const MAX_PASSWORD = 72;
 
 // Supabase Auth is email-based, so each username maps to an internal address that never receives mail.
 const toEmail = (username: string) => `${username.trim().toLowerCase()}@users.whispa.invalid`;
@@ -66,7 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
-      username: (session?.user.user_metadata?.username as string | undefined) ?? null,
+      // Taken from the login address, which the database enforces, not from editable profile metadata.
+      username: session?.user.email?.split("@")[0] ?? null,
       ready,
       signIn,
       signUp,

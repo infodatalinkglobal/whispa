@@ -31,8 +31,12 @@ export default function Feed() {
   const [myVotes, setMyVotes] = useState<Record<string, "up" | "down">>({});
   const [myReports, setMyReports] = useState<Set<string>>(new Set());
   const [newCode, setNewCode] = useState<string | null>(null);
-  const [codeError, setCodeError] = useState(false);
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeSaveError, setCodeSaveError] = useState("");
   const known = useRef<Set<string> | null>(null);
+  // Only the newest request may update the screen, so a slow older response can't overwrite fresher data.
+  const requestId = useRef(0);
+  const lastLoaded = useRef(0);
 
   const goLogin = useCallback(() => router.push("/login"), [router]);
 
@@ -79,8 +83,11 @@ export default function Feed() {
         .order("created_at", { ascending: false })
         .limit(100);
       if (campus !== ALL) q = q.eq("campus", campus);
+      const id = ++requestId.current;
       const { data, error } = await q;
+      if (id !== requestId.current) return;
       if (error) return setError(true);
+      lastLoaded.current = Date.now();
       const rows = data as Confession[];
       setError(false);
       if (markNew && known.current) {
@@ -101,6 +108,20 @@ export default function Feed() {
     load(false);
   }, [load, ready]);
 
+  // Other people's new posts show up when the student comes back to the tab (at most every 30 seconds).
+  useEffect(() => {
+    if (!ready) return;
+    const refresh = () => {
+      if (document.visibilityState === "visible" && Date.now() - lastLoaded.current > 30_000) load(false);
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [load, ready]);
+
   function pick(c: string) {
     setCampus(c);
     try {
@@ -108,12 +129,20 @@ export default function Feed() {
     } catch {}
   }
 
-  async function makeRecoveryCode() {
-    setCodeError(false);
-    const code = generateRecoveryCode();
-    const { error } = await supabase.rpc("set_recovery_code", { p_code: code });
-    if (error) return setCodeError(true);
-    setNewCode(code);
+  // The new code is only saved once the member confirms they've kept it. Closing the sheet early
+  // leaves the old code working, so nobody is locked out by a code they never saw.
+  function makeRecoveryCode() {
+    setCodeSaveError("");
+    setNewCode(generateRecoveryCode());
+  }
+
+  async function saveNewCode() {
+    if (!newCode) return;
+    setCodeBusy(true);
+    const { error } = await supabase.rpc("set_recovery_code", { p_code: newCode });
+    setCodeBusy(false);
+    if (error) return setCodeSaveError("Couldn't save your new code. Try again. Your old code still works.");
+    setNewCode(null);
   }
 
   function startPost() {
@@ -124,7 +153,7 @@ export default function Feed() {
   const closeForm = useCallback(() => setOpen(false), []);
   const closeCode = useCallback(() => {
     setNewCode(null);
-    setCodeError(false);
+    setCodeSaveError("");
   }, []);
 
   return (
@@ -179,6 +208,14 @@ export default function Feed() {
               loggedIn={loggedIn}
               onNeedLogin={goLogin}
               myVote={myVotes[c.id] ?? null}
+              onVote={(dir) =>
+                setMyVotes((v) => {
+                  const next = { ...v };
+                  if (dir) next[c.id] = dir;
+                  else delete next[c.id];
+                  return next;
+                })
+              }
               reported={myReports.has(c.id)}
               onReported={() => setMyReports((s) => new Set(s).add(c.id))}
             />
@@ -205,18 +242,9 @@ export default function Feed() {
         </BottomSheet>
       )}
 
-      {(newCode || codeError) && (
+      {newCode && (
         <BottomSheet onClose={closeCode} title="Recovery code">
-          {newCode ? (
-            <RecoveryCodeCard code={newCode} actionLabel="Done" onDone={closeCode} />
-          ) : (
-            <>
-              <p className="text-sm text-hot">Couldn&apos;t create a recovery code. Try again.</p>
-              <button onClick={closeCode} className="mt-4 w-full rounded-full border border-line py-3 text-sm text-ink">
-                Close
-              </button>
-            </>
-          )}
+          <RecoveryCodeCard code={newCode} actionLabel="Done" onDone={saveNewCode} busy={codeBusy} error={codeSaveError} />
         </BottomSheet>
       )}
     </>

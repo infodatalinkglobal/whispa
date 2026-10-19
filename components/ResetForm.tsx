@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { MIN_PASSWORD, USERNAME_RE } from "@/lib/auth";
+import { MAX_PASSWORD, MIN_PASSWORD, USERNAME_RE } from "@/lib/auth";
 import RecoveryCodeCard from "./RecoveryCodeCard";
 
 export default function ResetForm() {
@@ -31,7 +31,13 @@ export default function ResetForm() {
     setBusy(false);
 
     if (fnError || !data?.ok) {
-      return setError("Wrong username or recovery code. After 5 wrong tries you'll need to wait 15 minutes.");
+      // 400 means the username/code didn't match (or the account is locked). Anything else is a real failure.
+      const status = (fnError as { context?: Response } | null)?.context?.status;
+      return setError(
+        status === 400
+          ? "Wrong username or recovery code. After 5 wrong tries you'll need to wait 15 minutes."
+          : "Something went wrong on our side. Please try again in a moment."
+      );
     }
     setNewCode(data.newCode as string);
   }
@@ -47,7 +53,7 @@ export default function ResetForm() {
       />
       <div className="relative">
         <p className="font-display text-lg font-bold text-ink">
-          Whispa <span className="not-italic">🤫</span>
+          Whispa <span>🤫</span>
         </p>
 
         {newCode ? (
@@ -98,6 +104,7 @@ export default function ResetForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   type={show ? "text" : "password"}
                   autoComplete="new-password"
+                  maxLength={MAX_PASSWORD}
                   placeholder={`New password (${MIN_PASSWORD}+ characters)`}
                   aria-label="New password"
                   className={`${field} pr-20`}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Comments from "./Comments";
 import ShareImageButton from "./ShareImageButton";
@@ -18,6 +18,7 @@ export default function ConfessionCard({
   loggedIn,
   onNeedLogin,
   myVote,
+  onVote,
   reported,
   onReported,
 }: {
@@ -27,6 +28,7 @@ export default function ConfessionCard({
   loggedIn: boolean;
   onNeedLogin: () => void;
   myVote: Dir | null;
+  onVote: (dir: Dir | null) => void;
   reported: boolean;
   onReported: () => void;
 }) {
@@ -38,10 +40,25 @@ export default function ConfessionCard({
   const [commentCount, setCommentCount] = useState(confession.comment_count ?? 0);
   const [expanded, setExpanded] = useState(false);
 
+  // One vote request at a time per card, so quick taps can't overlap and roll back in the wrong order.
+  const voting = useRef(false);
+
   // The account's saved vote loads after the feed does, and clears on log out.
   useEffect(() => {
     setMine(myVote);
   }, [myVote]);
+
+  // Fresh counts arrive when the feed reloads.
+  useEffect(() => {
+    if (!voting.current) {
+      setUp(confession.upvotes);
+      setDown(confession.downvotes);
+    }
+  }, [confession.upvotes, confession.downvotes]);
+
+  useEffect(() => {
+    setCommentCount(confession.comment_count ?? 0);
+  }, [confession.comment_count]);
 
   const category = CATEGORIES.find((c) => c.name === confession.category);
   const style = CATEGORY_STYLES[confession.category] ?? { bg: "#F0F0F0", text: "#555555" };
@@ -53,8 +70,10 @@ export default function ConfessionCard({
     if (!loggedIn) return onNeedLogin();
     if (reported) return;
     if (!window.confirm("Report this post as harmful or inappropriate?")) return;
+    // Only show "Reported" once the server has accepted it.
+    const { error } = await supabase.rpc("report_confession", { p_id: confession.id });
+    if (error) return window.alert("Couldn't send your report. Please try again.");
     onReported();
-    await supabase.rpc("report_confession", { p_id: confession.id });
   }
 
   // Moves this account's vote from `from` to `to` in the on-screen counts.
@@ -70,6 +89,8 @@ export default function ConfessionCard({
   // One vote per account: tapping again removes it; tapping the other side switches it.
   async function vote(dir: Dir) {
     if (!loggedIn) return onNeedLogin();
+    if (voting.current) return;
+    voting.current = true;
     const prev = mine;
     const next = prev === dir ? null : dir;
     shift(prev, next);
@@ -79,9 +100,12 @@ export default function ConfessionCard({
       setTimeout(() => setPop(null), 400);
     }
     const { error } = await supabase.rpc("vote_confession", { p_id: confession.id, p_direction: next });
+    voting.current = false;
     if (error) {
       shift(next, prev);
       setMine(prev);
+    } else {
+      onVote(next);
     }
   }
 

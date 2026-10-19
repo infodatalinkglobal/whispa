@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { MIN_PASSWORD, USERNAME_RE, useAuth } from "@/lib/auth";
+import { MAX_PASSWORD, MIN_PASSWORD, USERNAME_RE, useAuth } from "@/lib/auth";
 import { ACTIVE_CAMPUSES, CAMPUSES, CAMPUS_SHORT, SINGLE_CAMPUS } from "@/lib/constants";
 import { shortName } from "./Pills";
 import { generateRecoveryCode } from "@/lib/recovery";
@@ -102,7 +102,7 @@ export default function LoginForm() {
 
       <div className="relative">
         <p className="font-display text-lg font-bold text-ink">
-          Whispa <span className="not-italic">🤫</span>
+          Whispa <span>🤫</span>
         </p>
 
         <h1 className="mt-6 font-display text-[44px] font-bold leading-[1.02] tracking-tight text-ink">
@@ -146,6 +146,7 @@ export default function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               type={show ? "text" : "password"}
               autoComplete={mode === "login" ? "current-password" : "new-password"}
+              maxLength={MAX_PASSWORD}
               placeholder={mode === "signup" ? `Password (${MIN_PASSWORD}+ characters)` : "Password"}
               aria-label="Password"
               className={`${field} pr-20`}

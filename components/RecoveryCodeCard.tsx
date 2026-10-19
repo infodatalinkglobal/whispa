@@ -7,10 +7,15 @@ export default function RecoveryCodeCard({
   code,
   actionLabel,
   onDone,
+  busy = false,
+  error = "",
 }: {
   code: string;
   actionLabel: string;
   onDone: () => void;
+  // Set while the parent is saving the code, and to show why saving failed.
+  busy?: boolean;
+  error?: string;
 }) {
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -61,13 +66,19 @@ export default function RecoveryCodeCard({
         I&apos;ve saved my recovery code
       </label>
 
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-hot">
+          {error}
+        </p>
+      )}
+
       <button
         type="button"
-        disabled={!saved}
+        disabled={!saved || busy}
         onClick={onDone}
         className="mt-5 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-white shadow-[0_8px_28px_rgba(0,215,114,0.4)] transition active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
       >
-        {actionLabel}
+        {busy ? "Saving…" : actionLabel}
       </button>
     </div>
   );

@@ -20,10 +20,11 @@ export default function Comments({ confessionId, onAdded }: { confessionId: stri
       .from("comments")
       .select("id, content, created_at")
       .eq("confession_id", confessionId)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(100);
+    // Newest 100, shown oldest-first so the thread reads top to bottom.
     if (error) setError("Couldn't load replies.");
-    else setItems(data as Comment[]);
+    else setItems((data as Comment[]).reverse());
   }
 
   useEffect(() => {
