@@ -22,6 +22,16 @@ function writeVotes(v: Record<string, Dir>) {
   } catch {}
 }
 
+const REPORT_KEY = "whispa_reported";
+
+function readReported(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(REPORT_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
 export default function ConfessionCard({ confession }: { confession: Confession }) {
   const [up, setUp] = useState(confession.upvotes);
   const [down, setDown] = useState(confession.downvotes);
@@ -29,9 +39,22 @@ export default function ConfessionCard({ confession }: { confession: Confession 
   const [showComments, setShowComments] = useState(false);
   const [commentCount, setCommentCount] = useState(confession.comments?.[0]?.count ?? 0);
 
+  const [reported, setReported] = useState(false);
+
   useEffect(() => {
     setMine(readVotes()[confession.id] ?? null);
+    setReported(readReported().includes(confession.id));
   }, [confession.id]);
+
+  async function report() {
+    if (reported) return;
+    if (!window.confirm("Report this post as harmful or inappropriate?")) return;
+    setReported(true);
+    try {
+      localStorage.setItem(REPORT_KEY, JSON.stringify([...readReported(), confession.id]));
+    } catch {}
+    await supabase.rpc("report_confession", { p_id: confession.id });
+  }
 
   const emoji = CATEGORIES.find((c) => c.name === confession.category)?.emoji ?? "";
 
@@ -107,7 +130,14 @@ export default function ConfessionCard({ confession }: { confession: Confession 
           Share on WhatsApp 💬
         </a>
       </div>
-      {showComments && <Comments confessionId={confession.id} onAdded={() => setCommentCount((n) => n + 1)} />}
+      <button
+        onClick={report}
+        disabled={reported}
+        className="mt-2 text-xs text-gray-500 underline-offset-2 hover:underline disabled:no-underline"
+      >
+        {reported ? "Reported. Thanks." : "🚩 Report"}
+      </button>
+      {showComments &&<Comments confessionId={confession.id} onAdded={() => setCommentCount((n) => n + 1)} />}
     </article>
   );
 }
