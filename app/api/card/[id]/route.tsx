@@ -48,7 +48,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     extrabold && { name: "Inter", data: extrabold, weight: 800 as const, style: "normal" as const },
   ].filter((f): f is NonNullable<typeof f> => !!f);
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     (
       <div
         style={{
@@ -117,12 +117,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         </div>
       </div>
     ),
-    {
-      width: 1080,
-      height: 1920,
-      fonts: fonts.length ? fonts : undefined,
-      // Short cache: a post that gets hidden should stop being served as an image within minutes.
-      headers: { "Cache-Control": "public, max-age=300, s-maxage=300" },
-    }
+    { width: 1080, height: 1920, fonts: fonts.length ? fonts : undefined }
   );
+
+  // ImageResponse adds its own one-year "immutable" cache header and merges any header we pass instead of
+  // replacing it. Send the PNG in a fresh response so only our short cache applies: a post that gets
+  // hidden should stop being served as an image within minutes.
+  return new Response(image.body, {
+    headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=300, s-maxage=300" },
+  });
 }
