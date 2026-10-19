@@ -73,7 +73,7 @@ export default function LoginForm() {
   }
 
   const field =
-    "w-full rounded-full border border-line bg-card px-6 py-4 text-[17px] text-ink outline-none transition placeholder:text-muted focus:border-accent";
+    "w-full rounded-full border border-line bg-[#fafafa] px-6 py-4 text-[17px] text-ink outline-none transition placeholder:text-muted focus:border-accent";
 
   if (codeToShow) {
     return (
@@ -98,7 +98,7 @@ export default function LoginForm() {
       />
 
       <div className="relative">
-        <p className="font-display text-lg font-bold italic text-ink">
+        <p className="font-display text-lg font-bold text-ink">
           Whispa <span className="not-italic">🤫</span>
         </p>
 
@@ -107,13 +107,13 @@ export default function LoginForm() {
             <>
               Join your
               <br />
-              <span className="text-accent">campus.</span>
+              <span className="text-accent-dark">campus.</span>
             </>
           ) : (
             <>
               Welcome
               <br />
-              <span className="text-accent">back.</span>
+              <span className="text-accent-dark">back.</span>
             </>
           )}
         </h1>
@@ -168,8 +168,8 @@ export default function LoginForm() {
                     onClick={() => setCampus(c)}
                     className={`rounded-full border px-4 py-2 text-sm font-medium transition active:scale-95 ${
                       campus === c
-                        ? "border-accent bg-accent text-[#04140b]"
-                        : "border-line bg-card text-muted hover:text-ink"
+                        ? "border-accent bg-accent text-white"
+                        : "border-line bg-[#fafafa] text-muted hover:text-ink"
                     }`}
                   >
                     {CAMPUS_SHORT[c] ?? c}
@@ -181,7 +181,7 @@ export default function LoginForm() {
 
           {mode === "login" && (
             <p className="px-2 text-right text-sm">
-              <Link href="/reset" className="text-muted hover:text-accent">
+              <Link href="/reset" className="text-muted hover:text-accent-dark">
                 Forgot password?
               </Link>
             </p>
@@ -196,7 +196,7 @@ export default function LoginForm() {
           <button
             type="submit"
             disabled={busy}
-            className="mt-2 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-[#04140b] shadow-[0_0_36px_rgba(0,197,102,0.4)] transition active:scale-[0.98] disabled:opacity-60"
+            className="mt-2 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-white shadow-[0_8px_28px_rgba(0,215,114,0.4)] transition active:scale-[0.98] disabled:opacity-60"
           >
             {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
           </button>
@@ -210,7 +210,7 @@ export default function LoginForm() {
               setMode(mode === "signup" ? "login" : "signup");
               setError("");
             }}
-            className="font-semibold text-accent hover:underline"
+            className="font-semibold text-accent-dark hover:underline"
           >
             {mode === "signup" ? "Log in" : "Sign up"}
           </button>
@@ -225,7 +225,7 @@ export default function LoginForm() {
 
         <p className="mt-6 text-center text-sm">
           <Link href="/" className="text-muted hover:text-ink">
-            Just browsing? <span className="text-accent">See the feed</span>
+            Just browsing? <span className="text-accent-dark">See the feed</span>
           </Link>
         </p>
       </div>

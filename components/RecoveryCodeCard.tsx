@@ -29,15 +29,15 @@ export default function RecoveryCodeCard({
       <h2 className="font-display text-[34px] font-bold leading-[1.05] tracking-tight text-ink">
         Save your
         <br />
-        <span className="text-accent">recovery code.</span>
+        <span className="text-accent-dark">recovery code.</span>
       </h2>
       <p className="mt-3 text-[16px] leading-snug text-muted">
         If you forget your password, this code is the only way back into your account. There is no email reset.
         It&apos;s shown once.
       </p>
 
-      <div className="mt-6 rounded-3xl border border-accent/40 bg-card p-5 text-center">
-        <p className="select-all font-mono text-[22px] font-bold tracking-wider text-accent">{shown}</p>
+      <div className="mt-6 rounded-3xl border border-accent/40 bg-[#fafafa] p-5 text-center">
+        <p className="select-all font-mono text-[22px] font-bold tracking-wider text-accent-dark">{shown}</p>
         <button
           type="button"
           onClick={copy}
@@ -56,7 +56,7 @@ export default function RecoveryCodeCard({
           type="checkbox"
           checked={saved}
           onChange={(e) => setSaved(e.target.checked)}
-          className="mt-1 h-5 w-5 accent-[#00C566]"
+          className="mt-1 h-5 w-5 accent-[#00D772]"
         />
         I&apos;ve saved my recovery code
       </label>
@@ -65,7 +65,7 @@ export default function RecoveryCodeCard({
         type="button"
         disabled={!saved}
         onClick={onDone}
-        className="mt-5 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-[#04140b] shadow-[0_0_36px_rgba(0,197,102,0.4)] transition active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
+        className="mt-5 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-white shadow-[0_8px_28px_rgba(0,215,114,0.4)] transition active:scale-[0.98] disabled:opacity-40 disabled:shadow-none"
       >
         {actionLabel}
       </button>

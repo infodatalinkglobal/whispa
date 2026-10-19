@@ -8,18 +8,16 @@ export const CATEGORIES = [
   { name: "Work", emoji: "🔧" },
 ] as const;
 
-// Left-border colour per category, and the short campus names shown in the filter bar.
-export const CATEGORY_COLORS: Record<string, string> = {
-  Relationships: "#FF4444",
-  Academics: "#7B61FF",
-  Money: "#00C566",
-  Drama: "#FF8C00",
-  Work: "#00A8FF",
+// Soft pill colours per category.
+export const CATEGORY_STYLES: Record<string, { bg: string; text: string }> = {
+  Relationships: { bg: "#FFE4F0", text: "#C2185B" },
+  Academics: { bg: "#E4F0FF", text: "#1565C0" },
+  Money: { bg: "#E4FFF0", text: "#1B7F3A" },
+  Drama: { bg: "#FFF4E4", text: "#B45309" },
+  Work: { bg: "#F0E4FF", text: "#6D28D9" },
 };
 
 export const CAMPUS_SHORT: Record<string, string> = { "UG Legon": "Legon" };
-
-export const SITE_URL = "https://whispa-nu.vercel.app";
 
 export type Confession = {
   id: string;
@@ -49,7 +47,14 @@ export function timeAgo(iso: string): string {
   return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
-export function whatsappLink(campus: string, content: string): string {
-  const text = `👀 Someone at ${campus} confessed on Whispa 🤫\n\n'${content}'\n\nRead more confessions 👇\n${SITE_URL}`;
+const SHARE_LIMIT = 180;
+
+export function truncate(text: string, max = SHARE_LIMIT): string {
+  const t = text.trim();
+  return t.length <= max ? t : `${t.slice(0, max).trimEnd()}…`;
+}
+
+export function whatsappLink(campus: string, content: string, appUrl: string): string {
+  const text = `👀 Someone at ${campus} confessed on Whispa 🤫\n\n“${truncate(content)}”\n\nRead more👇\n${appUrl}`;
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }

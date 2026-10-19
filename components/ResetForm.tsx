@@ -37,7 +37,7 @@ export default function ResetForm() {
   }
 
   const field =
-    "w-full rounded-full border border-line bg-card px-6 py-4 text-[17px] text-ink outline-none transition placeholder:text-muted focus:border-accent";
+    "w-full rounded-full border border-line bg-[#fafafa] px-6 py-4 text-[17px] text-ink outline-none transition placeholder:text-muted focus:border-accent";
 
   return (
     <div className="relative w-full max-w-sm animate-fade-up">
@@ -46,13 +46,13 @@ export default function ResetForm() {
         className="pointer-events-none absolute -top-40 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-accent/25 blur-[90px]"
       />
       <div className="relative">
-        <p className="font-display text-lg font-bold italic text-ink">
+        <p className="font-display text-lg font-bold text-ink">
           Whispa <span className="not-italic">🤫</span>
         </p>
 
         {newCode ? (
           <div className="mt-6">
-            <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent">
+            <p className="mb-4 rounded-2xl border border-accent/40 bg-accent/10 px-4 py-3 text-sm text-accent-dark">
               Password changed. Your old recovery code no longer works, so save this new one.
             </p>
             <RecoveryCodeCard code={newCode} actionLabel="Go to log in" onDone={() => router.replace("/login")} />
@@ -62,7 +62,7 @@ export default function ResetForm() {
             <h1 className="mt-6 font-display text-[44px] font-bold leading-[1.02] tracking-tight text-ink">
               Reset your
               <br />
-              <span className="text-accent">password.</span>
+              <span className="text-accent-dark">password.</span>
             </h1>
             <p className="mt-3 text-[17px] leading-snug text-muted">
               Enter your username and the recovery code you saved when you signed up.
@@ -120,7 +120,7 @@ export default function ResetForm() {
               <button
                 type="submit"
                 disabled={busy}
-                className="mt-2 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-[#04140b] shadow-[0_0_36px_rgba(0,197,102,0.4)] transition active:scale-[0.98] disabled:opacity-60"
+                className="mt-2 w-full rounded-full bg-accent py-4 font-display text-lg font-bold text-white shadow-[0_8px_28px_rgba(0,215,114,0.4)] transition active:scale-[0.98] disabled:opacity-60"
               >
                 {busy ? "Please wait…" : "Reset password"}
               </button>
@@ -133,7 +133,7 @@ export default function ResetForm() {
 
             <p className="mt-6 text-center text-sm">
               <Link href="/login" className="text-muted hover:text-ink">
-                Back to <span className="text-accent">log in</span>
+                Back to <span className="text-accent-dark">log in</span>
               </Link>
             </p>
           </>
