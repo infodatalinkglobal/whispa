@@ -1,22 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { ACTIVE_CAMPUSES, CAMPUSES, CATEGORIES, SINGLE_CAMPUS } from "@/lib/constants";
+import { STARTERS } from "@/lib/prompts";
 
 const MAX = 500;
 const DRAFT_KEY = "whispa_draft";
 
+function initialText(seed: string | null): string {
+  let draft = "";
+  try {
+    draft = localStorage.getItem(DRAFT_KEY) ?? "";
+  } catch {}
+  if (!seed) return draft;
+  // Opened from the daily question: start with the question. An unsent draft is kept underneath, never lost.
+  if (!draft.trim()) return `${seed}\n`;
+  return draft.startsWith(seed) ? draft : `${seed}\n${draft}`;
+}
+
 // Lives inside a BottomSheet. An unsent confession is kept on the device, so closing the sheet by accident
 // doesn't lose what the student wrote.
-export default function ConfessionForm({ onClose, onPosted }: { onClose: () => void; onPosted: () => void }) {
-  const [content, setContent] = useState(() => {
-    try {
-      return localStorage.getItem(DRAFT_KEY) ?? "";
-    } catch {
-      return "";
-    }
-  });
+export default function ConfessionForm({
+  seed = null,
+  onClose,
+  onPosted,
+}: {
+  seed?: string | null;
+  onClose: () => void;
+  onPosted: () => void;
+}) {
+  const [content, setContent] = useState(() => initialText(seed));
+  const textarea = useRef<HTMLTextAreaElement>(null);
+
+  // Put the cursor after any text that's already there (the question or a saved draft).
+  useEffect(() => {
+    const el = textarea.current;
+    if (el) el.setSelectionRange(el.value.length, el.value.length);
+  }, []);
   const [campus, setCampus] = useState<string>(ACTIVE_CAMPUSES[0]);
   const [category, setCategory] = useState<string>(CATEGORIES[0].name);
   const [busy, setBusy] = useState(false);
@@ -68,7 +89,25 @@ export default function ConfessionForm({ onClose, onPosted }: { onClose: () => v
           ×
         </button>
       </div>
+      {content.trim() === "" && (
+        <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1" aria-label="Ideas to start with">
+          {STARTERS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                onChange(`${s} `);
+                textarea.current?.focus();
+              }}
+              className="shrink-0 rounded-full border border-accent/30 bg-accent/10 px-3.5 py-1.5 text-sm font-medium text-accent-dark transition active:scale-95"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
       <textarea
+        ref={textarea}
         value={content}
         onChange={(e) => onChange(e.target.value)}
         maxLength={MAX}

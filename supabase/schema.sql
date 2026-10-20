@@ -56,6 +56,16 @@ create table public.reports (
   primary key (user_id, confession_id)
 );
 
+-- Emoji reactions: one per account per post (changeable). Counts live on the post as {"laugh": 3, "fire": 1}.
+alter table public.confessions add column reaction_counts jsonb not null default '{}'::jsonb;
+create table public.reactions (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  confession_id uuid not null references public.confessions(id) on delete cascade,
+  reaction text not null check (reaction in ('laugh','cry','shy','fire','love')),
+  primary key (user_id, confession_id)
+);
+create index reactions_confession_idx on public.reactions (confession_id);
+
 -- ---------------------------------------------------------------- indexes
 create index confessions_feed_idx on public.confessions (created_at desc) where is_approved;
 create index comments_confession_idx on public.comments (confession_id, created_at);
@@ -70,10 +80,11 @@ alter table public.confessions enable row level security;
 alter table public.comments enable row level security;
 alter table public.votes enable row level security;
 alter table public.reports enable row level security;
+alter table public.reactions enable row level security;
 
 -- Column privileges keep private columns (user_id, is_seed, recovery data) away from the public API.
 revoke select on public.confessions from anon, authenticated;
-grant select (id, content, campus, category, upvotes, downvotes, is_approved, created_at, report_count, comment_count)
+grant select (id, content, campus, category, upvotes, downvotes, is_approved, created_at, report_count, comment_count, reaction_counts)
   on public.confessions to anon, authenticated;
 revoke select on public.comments from anon, authenticated;
 grant select (id, confession_id, content, created_at) on public.comments to anon, authenticated;
@@ -88,6 +99,7 @@ create policy "logged-in users post" on public.confessions for insert to authent
   with check (
     user_id = (select auth.uid())
     and is_approved and upvotes = 0 and downvotes = 0 and report_count = 0 and comment_count = 0
+    and reaction_counts = '{}'::jsonb
     and campus in ('ATU')
   );
 create policy "read comments on approved confessions" on public.comments for select to anon, authenticated
@@ -97,6 +109,7 @@ create policy "logged-in users comment" on public.comments for insert to authent
 create policy "read own profile" on public.profiles for select to authenticated using (id = (select auth.uid()));
 create policy "read own votes" on public.votes for select to authenticated using (user_id = (select auth.uid()));
 create policy "read own reports" on public.reports for select to authenticated using (user_id = (select auth.uid()));
+create policy "read own reactions" on public.reactions for select to authenticated using (user_id = (select auth.uid()));
 -- No insert/update/delete policies on votes, reports or profiles: they change only through the functions below.
 
 -- ---------------------------------------------------------------- accounts
@@ -179,6 +192,32 @@ begin
   end if;
 end $$;
 
+-- One emoji reaction per account. p_reaction: 'laugh' | 'cry' | 'shy' | 'fire' | 'love', or null to remove it.
+create or replace function public.react_confession(p_id uuid, p_reaction text)
+returns void language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); prev text;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  if p_reaction is not null and p_reaction not in ('laugh','cry','shy','fire','love') then raise exception 'bad reaction'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('react:' || uid::text || ':' || p_id::text, 0));
+  perform 1 from confessions where id = p_id and is_approved;
+  if not found then raise exception 'not found'; end if;
+  select reaction into prev from reactions where user_id = uid and confession_id = p_id;
+  if prev is not distinct from p_reaction then return; end if;
+  if prev is not null then
+    update confessions set reaction_counts = jsonb_set(reaction_counts, array[prev],
+      to_jsonb(greatest(coalesce((reaction_counts ->> prev)::int, 0) - 1, 0))) where id = p_id;
+  end if;
+  if p_reaction is not null then
+    update confessions set reaction_counts = jsonb_set(reaction_counts, array[p_reaction],
+      to_jsonb(coalesce((reaction_counts ->> p_reaction)::int, 0) + 1)) where id = p_id;
+    insert into reactions (user_id, confession_id, reaction) values (uid, p_id, p_reaction)
+      on conflict (user_id, confession_id) do update set reaction = excluded.reaction;
+  else
+    delete from reactions where user_id = uid and confession_id = p_id;
+  end if;
+end $$;
+
 -- One report per account. Only accounts at least 1 hour old count toward hiding; 10 counted reports hide a post.
 create or replace function public.report_confession(p_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
@@ -253,6 +292,8 @@ revoke execute on function public.handle_new_user() from public, anon, authentic
 revoke all on function public.vote_confession(uuid, text) from public, anon;
 revoke all on function public.report_confession(uuid) from public, anon;
 revoke all on function public.set_recovery_code(text) from public, anon;
+revoke all on function public.react_confession(uuid, text) from public, anon;
+grant execute on function public.react_confession(uuid, text) to authenticated;
 grant execute on function public.vote_confession(uuid, text) to authenticated;
 grant execute on function public.report_confession(uuid) to authenticated;
 grant execute on function public.set_recovery_code(text) to authenticated;

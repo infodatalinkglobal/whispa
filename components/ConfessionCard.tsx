@@ -5,7 +5,16 @@ import { supabase } from "@/lib/supabase";
 import Comments from "./Comments";
 import ShareImageButton from "./ShareImageButton";
 import ShareLink from "./ShareLink";
-import { CAMPUS_SHORT, CATEGORIES, CATEGORY_STYLES, timeAgo, type Confession } from "@/lib/constants";
+import {
+  CAMPUS_SHORT,
+  CATEGORIES,
+  CATEGORY_STYLES,
+  REACTIONS,
+  timeAgo,
+  type Confession,
+  type ReactionCounts,
+  type ReactionKey,
+} from "@/lib/constants";
 
 type Dir = "up" | "down";
 const LONG = 280;
@@ -19,6 +28,8 @@ export default function ConfessionCard({
   onNeedLogin,
   myVote,
   onVote,
+  myReaction,
+  onReact,
   reported,
   onReported,
 }: {
@@ -29,6 +40,8 @@ export default function ConfessionCard({
   onNeedLogin: () => void;
   myVote: Dir | null;
   onVote: (dir: Dir | null) => void;
+  myReaction: ReactionKey | null;
+  onReact: (key: ReactionKey | null) => void;
   reported: boolean;
   onReported: () => void;
 }) {
@@ -40,8 +53,21 @@ export default function ConfessionCard({
   const [commentCount, setCommentCount] = useState(confession.comment_count ?? 0);
   const [expanded, setExpanded] = useState(false);
 
-  // One vote request at a time per card, so quick taps can't overlap and roll back in the wrong order.
+  const [reactionCounts, setReactionCounts] = useState<ReactionCounts>(confession.reaction_counts ?? {});
+  const [myReact, setMyReact] = useState<ReactionKey | null>(myReaction);
+  const [popReaction, setPopReaction] = useState<ReactionKey | null>(null);
+
+  // One vote or reaction request at a time per card, so quick taps can't overlap and roll back in the wrong order.
   const voting = useRef(false);
+  const reacting = useRef(false);
+
+  useEffect(() => {
+    setMyReact(myReaction);
+  }, [myReaction]);
+
+  useEffect(() => {
+    if (!reacting.current) setReactionCounts(confession.reaction_counts ?? {});
+  }, [confession.reaction_counts]);
 
   // The account's saved vote loads after the feed does, and clears on log out.
   useEffect(() => {
@@ -106,6 +132,39 @@ export default function ConfessionCard({
       setMine(prev);
     } else {
       onVote(next);
+    }
+  }
+
+  // Moves this account's reaction from `from` to `to` in the on-screen counts.
+  function shiftReaction(from: ReactionKey | null, to: ReactionKey | null) {
+    setReactionCounts((counts) => {
+      const next = { ...counts };
+      if (from) next[from] = Math.max((next[from] ?? 0) - 1, 0);
+      if (to) next[to] = (next[to] ?? 0) + 1;
+      return next;
+    });
+  }
+
+  // One reaction per account: tapping the same one again removes it; tapping another switches it.
+  async function react(key: ReactionKey) {
+    if (!loggedIn) return onNeedLogin();
+    if (reacting.current) return;
+    reacting.current = true;
+    const prev = myReact;
+    const next = prev === key ? null : key;
+    shiftReaction(prev, next);
+    setMyReact(next);
+    if (next) {
+      setPopReaction(next);
+      setTimeout(() => setPopReaction(null), 400);
+    }
+    const { error } = await supabase.rpc("react_confession", { p_id: confession.id, p_reaction: next });
+    reacting.current = false;
+    if (error) {
+      shiftReaction(next, prev);
+      setMyReact(prev);
+    } else {
+      onReact(next);
     }
   }
 
@@ -174,6 +233,29 @@ export default function ConfessionCard({
           {expanded ? "Show less" : "Read more"}
         </button>
       )}
+
+      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Reactions">
+        {REACTIONS.map((r) => {
+          const n = reactionCounts[r.key] ?? 0;
+          const active = myReact === r.key;
+          return (
+            <button
+              key={r.key}
+              onClick={() => react(r.key)}
+              aria-pressed={active}
+              aria-label={`${r.label} reaction`}
+              className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-sm transition active:scale-90 ${
+                active ? "border-accent bg-accent/10 text-ink" : `border-[#eaeaea] bg-white ${n > 0 ? "text-ink" : "text-muted"}`
+              }`}
+            >
+              <span className={`inline-block ${popReaction === r.key ? "animate-pop" : ""} ${n === 0 && !active ? "opacity-60" : ""}`}>
+                {r.emoji}
+              </span>
+              {n > 0 && <span className="text-xs font-semibold tabular-nums">{n}</span>}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="mt-3 flex items-center gap-5 border-t border-line pt-3">
         {voteButton("up", up)}

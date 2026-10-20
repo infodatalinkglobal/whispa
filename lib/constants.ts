@@ -24,6 +24,18 @@ export const CATEGORY_STYLES: Record<string, { bg: string; text: string }> = {
 
 export const CAMPUS_SHORT: Record<string, string> = { "UG Legon": "Legon" };
 
+// Emoji reactions. The key is what the database stores.
+export const REACTIONS = [
+  { key: "laugh", emoji: "😂", label: "Funny" },
+  { key: "cry", emoji: "😭", label: "Relatable" },
+  { key: "shy", emoji: "😳", label: "Wow" },
+  { key: "fire", emoji: "🔥", label: "Fire" },
+  { key: "love", emoji: "❤️", label: "Love" },
+] as const;
+
+export type ReactionKey = (typeof REACTIONS)[number]["key"];
+export type ReactionCounts = Partial<Record<ReactionKey, number>>;
+
 export type Confession = {
   id: string;
   content: string;
@@ -33,6 +45,7 @@ export type Confession = {
   downvotes: number;
   created_at: string;
   comment_count?: number;
+  reaction_counts?: ReactionCounts;
 };
 
 export type Comment = {

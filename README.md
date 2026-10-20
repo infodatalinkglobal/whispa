@@ -21,6 +21,10 @@ npm run dev
   `reset-password` edge function checks it, sets the new password and ends all old logins.
 - **Abuse limits:** 1 post per 30 s, 1 reply per 10 s, one vote and one report per account. A post is hidden after
   10 reports from accounts at least 1 hour old.
+- **Feed:** Hot by default, with a New switch. Hot score = (up − down + reactions + 2 × replies + 1) ÷ (age in hours + 2)^1.5
+  (`lib/ranking.ts`).
+- **Reactions:** 😂 😭 😳 🔥 ❤️, one per account per post, changeable. Counts are stored on the post.
+- **Daily question:** a new prompt every day from a built-in list (`lib/prompts.ts`), plus writing starters in the composer.
 - **Share cards:** `/api/card/<confession id>` draws a 1080×1920 image for WhatsApp Status.
 - **Install prompt:** web app manifest, generated icons (`/icons/<size>.png`) and a tiny service worker.
 

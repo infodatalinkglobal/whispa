@@ -4,12 +4,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { ACTIVE_CAMPUSES, CAMPUSES, SINGLE_CAMPUS, type Confession } from "@/lib/constants";
+import { ACTIVE_CAMPUSES, CAMPUSES, SINGLE_CAMPUS, type Confession, type ReactionKey } from "@/lib/constants";
 import { rankHot } from "@/lib/ranking";
 import { generateRecoveryCode } from "@/lib/recovery";
 import BottomSheet from "./BottomSheet";
 import ConfessionCard from "./ConfessionCard";
 import ConfessionForm from "./ConfessionForm";
+import DailyPrompt from "./DailyPrompt";
 import Header from "./Header";
 import InstallPrompt from "./InstallPrompt";
 import Pills, { ALL } from "./Pills";
@@ -36,6 +37,9 @@ export default function Feed() {
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [myVotes, setMyVotes] = useState<Record<string, "up" | "down">>({});
   const [myReports, setMyReports] = useState<Set<string>>(new Set());
+  const [myReactions, setMyReactions] = useState<Record<string, ReactionKey>>({});
+  // Text the composer opens with (the daily question), or null for a blank start.
+  const [seed, setSeed] = useState<string | null>(null);
   const [newCode, setNewCode] = useState<string | null>(null);
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeSaveError, setCodeSaveError] = useState("");
@@ -78,19 +82,24 @@ export default function Feed() {
     if (!session) {
       setMyVotes({});
       setMyReports(new Set());
+      setMyReactions({});
       return;
     }
     let cancelled = false;
     (async () => {
-      const [v, r] = await Promise.all([
+      const [v, r, x] = await Promise.all([
         supabase.from("votes").select("confession_id, direction"),
         supabase.from("reports").select("confession_id"),
+        supabase.from("reactions").select("confession_id, reaction"),
       ]);
       if (cancelled) return;
       const votes: Record<string, "up" | "down"> = {};
       (v.data ?? []).forEach((row) => (votes[row.confession_id] = row.direction as "up" | "down"));
       setMyVotes(votes);
       setMyReports(new Set((r.data ?? []).map((row) => row.confession_id as string)));
+      const reactions: Record<string, ReactionKey> = {};
+      (x.data ?? []).forEach((row) => (reactions[row.confession_id] = row.reaction as ReactionKey));
+      setMyReactions(reactions);
     })();
     return () => {
       cancelled = true;
@@ -101,7 +110,7 @@ export default function Feed() {
     async (markNew: boolean) => {
       let q = supabase
         .from("confessions")
-        .select("id, content, campus, category, upvotes, downvotes, created_at, comment_count")
+        .select("id, content, campus, category, upvotes, downvotes, created_at, comment_count, reaction_counts")
         .eq("is_approved", true)
         .order("created_at", { ascending: false })
         .limit(100);
@@ -168,12 +177,16 @@ export default function Feed() {
     setNewCode(null);
   }
 
-  function startPost() {
+  function startPost(question?: string) {
     if (!loggedIn) return goLogin();
+    setSeed(question ?? null);
     setOpen(true);
   }
 
-  const closeForm = useCallback(() => setOpen(false), []);
+  const closeForm = useCallback(() => {
+    setOpen(false);
+    setSeed(null);
+  }, []);
   const closeCode = useCallback(() => {
     setNewCode(null);
     setCodeSaveError("");
@@ -200,6 +213,8 @@ export default function Feed() {
 
       <div className="mx-auto max-w-[560px] px-4 pb-32 pt-4">
         <InstallPrompt />
+
+        <DailyPrompt onAnswer={startPost} />
 
         {error && (
           <p className="py-10 text-center text-sm text-hot">Couldn&apos;t load confessions. Check your connection and try again.</p>
@@ -262,6 +277,15 @@ export default function Feed() {
                   return next;
                 })
               }
+              myReaction={myReactions[c.id] ?? null}
+              onReact={(key) =>
+                setMyReactions((r) => {
+                  const next = { ...r };
+                  if (key) next[c.id] = key;
+                  else delete next[c.id];
+                  return next;
+                })
+              }
               reported={myReports.has(c.id)}
               onReported={() => setMyReports((s) => new Set(s).add(c.id))}
             />
@@ -270,7 +294,7 @@ export default function Feed() {
       </div>
 
       <button
-        onClick={startPost}
+        onClick={() => startPost()}
         className="fixed bottom-6 left-1/2 z-20 -translate-x-1/2 rounded-full bg-accent px-7 py-3.5 text-base font-bold text-white shadow-[0_8px_28px_rgba(0,215,114,0.45)] transition active:scale-95"
       >
         🤫 Whispa
@@ -279,9 +303,10 @@ export default function Feed() {
       {open && (
         <BottomSheet onClose={closeForm} title="New confession">
           <ConfessionForm
+            seed={seed}
             onClose={closeForm}
             onPosted={() => {
-              setOpen(false);
+              closeForm();
               load(true);
             }}
           />
