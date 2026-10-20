@@ -2,20 +2,28 @@
 
 import { useState } from "react";
 
-function download(blob: Blob) {
+function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "whispa-confession.png";
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// Builds the confession's image card, then opens the phone's share sheet with it
-// (WhatsApp Status, class groups, etc.). Where sharing files isn't possible, it downloads the picture.
-export default function ShareImageButton({ confessionId }: { confessionId: string }) {
+// Builds an image card from `url`, then opens the phone's share sheet with it (WhatsApp Status, class groups, etc.).
+// Where sharing files isn't possible, it downloads the picture. `headers` is for cards that need a login token.
+export default function ShareImageButton({
+  url,
+  headers,
+  filename = "whispa.png",
+}: {
+  url: string;
+  headers?: () => Promise<Record<string, string>>;
+  filename?: string;
+}) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -24,10 +32,10 @@ export default function ShareImageButton({ confessionId }: { confessionId: strin
     setBusy(true);
     setFailed(false);
     try {
-      const res = await fetch(`/api/card/${confessionId}`);
+      const res = await fetch(url, { headers: headers ? await headers() : undefined });
       if (!res.ok) throw new Error("card");
       const blob = await res.blob();
-      const file = new File([blob], "whispa-confession.png", { type: "image/png" });
+      const file = new File([blob], filename, { type: "image/png" });
 
       if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
         try {
@@ -36,10 +44,10 @@ export default function ShareImageButton({ confessionId }: { confessionId: strin
           // Closing the share sheet is not a failure.
           if (err instanceof DOMException && err.name === "AbortError") return;
           // Some phones refuse to share once the image took a few seconds to build. Save it instead.
-          download(blob);
+          download(blob, filename);
         }
       } else {
-        download(blob);
+        download(blob, filename);
       }
     } catch {
       setFailed(true);

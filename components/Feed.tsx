@@ -12,6 +12,7 @@ import ConfessionCard from "./ConfessionCard";
 import ConfessionForm from "./ConfessionForm";
 import DailyPrompt from "./DailyPrompt";
 import Header from "./Header";
+import InboxPromo from "./InboxPromo";
 import InstallPrompt from "./InstallPrompt";
 import Pills, { ALL } from "./Pills";
 import RecoveryCodeCard from "./RecoveryCodeCard";
@@ -38,6 +39,7 @@ export default function Feed() {
   const [myVotes, setMyVotes] = useState<Record<string, "up" | "down">>({});
   const [myReports, setMyReports] = useState<Set<string>>(new Set());
   const [myReactions, setMyReactions] = useState<Record<string, ReactionKey>>({});
+  const [unread, setUnread] = useState(0);
   // Text the composer opens with (the daily question), or null for a blank start.
   const [seed, setSeed] = useState<string | null>(null);
   const [newCode, setNewCode] = useState<string | null>(null);
@@ -140,6 +142,26 @@ export default function Feed() {
     load(false);
   }, [load, ready]);
 
+  // Unread anonymous messages in this account's inbox, checked on load and when the student returns to the tab.
+  useEffect(() => {
+    if (!session) return setUnread(0);
+    let cancelled = false;
+    const check = async () => {
+      const { count } = await supabase
+        .from("anon_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("is_read", false);
+      if (!cancelled) setUnread(count ?? 0);
+    };
+    check();
+    const onVisible = () => document.visibilityState === "visible" && check();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [session]);
+
   // Other people's new posts show up when the student comes back to the tab (at most every 30 seconds).
   useEffect(() => {
     if (!ready) return;
@@ -203,6 +225,7 @@ export default function Feed() {
           onLogin={goLogin}
           onSignOut={signOut}
           onNewCode={makeRecoveryCode}
+          unread={unread}
         />
         {!SINGLE_CAMPUS && (
           <div className="mx-auto max-w-[560px]">
@@ -215,6 +238,8 @@ export default function Feed() {
         <InstallPrompt />
 
         <DailyPrompt onAnswer={startPost} />
+
+        <InboxPromo unread={unread} />
 
         {error && (
           <p className="py-10 text-center text-sm text-hot">Couldn&apos;t load confessions. Check your connection and try again.</p>

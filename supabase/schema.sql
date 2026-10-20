@@ -304,3 +304,165 @@ revoke all on function public.revoke_sessions(uuid) from public, anon, authentic
 grant execute on function public.set_recovery_code_for(uuid, text) to service_role;
 grant execute on function public.verify_recovery(text, text) to service_role;
 grant execute on function public.revoke_sessions(uuid) to service_role;
+
+-- ================================================================ anonymous inbox (NGL-style personal links)
+-- Each account gets a private random link (/m/<code>). Anyone who opens it can send an anonymous message,
+-- no account needed. Only the owner can read them. Senders keep a secret in their own browser so they can
+-- see replies later, on that same browser.
+
+create table public.inboxes (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  code text not null unique,
+  is_paused boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create table public.anon_messages (
+  id uuid primary key default gen_random_uuid(),
+  inbox_user_id uuid not null references auth.users(id) on delete cascade,
+  content text not null check (char_length(btrim(content)) between 1 and 500),
+  created_at timestamptz not null default now(),
+  is_read boolean not null default false,
+  reply text check (reply is null or char_length(btrim(reply)) between 1 and 500),
+  replied_at timestamptz,
+  token_hash text not null,   -- hash of the sender's browser secret
+  ip_hash text not null,      -- salted per recipient; only for spam limits and blocking, never readable by clients
+  reported boolean not null default false
+);
+create table public.blocked_senders (
+  inbox_user_id uuid not null references auth.users(id) on delete cascade,
+  ip_hash text not null,
+  created_at timestamptz not null default now(),
+  primary key (inbox_user_id, ip_hash)
+);
+create index anon_messages_inbox_idx on public.anon_messages (inbox_user_id, created_at desc);
+create index anon_messages_ip_idx on public.anon_messages (inbox_user_id, ip_hash, created_at);
+create index anon_messages_token_idx on public.anon_messages (token_hash);
+
+alter table public.inboxes enable row level security;
+alter table public.anon_messages enable row level security;
+alter table public.blocked_senders enable row level security;
+revoke all on public.inboxes, public.anon_messages, public.blocked_senders from anon, authenticated;
+grant select on public.inboxes to authenticated;
+grant select (id, content, created_at, is_read, reply, replied_at) on public.anon_messages to authenticated;
+grant delete on public.anon_messages to authenticated;
+create policy "read own inbox" on public.inboxes for select to authenticated using (user_id = (select auth.uid()));
+-- A message the owner reported disappears from their inbox for good (it stays in the database for review).
+create policy "read own messages" on public.anon_messages for select to authenticated
+  using (inbox_user_id = (select auth.uid()) and not reported);
+create policy "delete own messages" on public.anon_messages for delete to authenticated using (inbox_user_id = (select auth.uid()));
+
+-- 10-character link code. The alphabet has 31 characters, so pick with modulo 31.
+create or replace function public.new_inbox_code() returns text
+language plpgsql security definer set search_path = public, extensions as $$
+declare alphabet text := 'abcdefghjkmnpqrstuvwxyz23456789'; v_code text; bytes bytea; i int;
+begin
+  loop
+    bytes := gen_random_bytes(10); v_code := '';
+    for i in 0..9 loop v_code := v_code || substr(alphabet, (get_byte(bytes, i) % length(alphabet)) + 1, 1); end loop;
+    exit when not exists (select 1 from inboxes where inboxes.code = v_code);
+  end loop;
+  return v_code;
+end $$;
+
+-- Owner functions (signed in)
+create or replace function public.get_my_inbox() returns table (code text, is_paused boolean)
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid();
+begin
+  if uid is null then raise exception 'login required'; end if;
+  insert into inboxes (user_id, code) values (uid, new_inbox_code()) on conflict (user_id) do nothing;
+  return query select i.code, i.is_paused from inboxes i where i.user_id = uid;
+end $$;
+
+create or replace function public.reset_inbox_link() returns text
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); v_code text;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  perform get_my_inbox();
+  v_code := new_inbox_code();
+  update inboxes set code = v_code where user_id = uid;
+  return v_code;
+end $$;
+
+create or replace function public.set_inbox_paused(p_paused boolean) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'login required'; end if;
+  perform get_my_inbox();
+  update inboxes set is_paused = p_paused where user_id = auth.uid();
+end $$;
+
+create or replace function public.reply_to_message(p_id uuid, p_reply text) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then raise exception 'login required'; end if;
+  update anon_messages set reply = btrim(p_reply), replied_at = now() where id = p_id and inbox_user_id = auth.uid();
+  if not found then raise exception 'not found'; end if;
+end $$;
+
+create or replace function public.mark_messages_read() returns void
+language sql security definer set search_path = public as $$
+  update anon_messages set is_read = true where inbox_user_id = auth.uid() and not is_read;
+$$;
+
+-- Flags the message for review and silently blocks whoever sent it from this inbox.
+create or replace function public.report_and_block(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare uid uuid := auth.uid(); h text;
+begin
+  if uid is null then raise exception 'login required'; end if;
+  update anon_messages set reported = true where id = p_id and inbox_user_id = uid returning ip_hash into h;
+  if h is null then raise exception 'not found'; end if;
+  if h not like 'u:%' then
+    insert into blocked_senders (inbox_user_id, ip_hash) values (uid, h) on conflict do nothing;
+  end if;
+end $$;
+
+-- Public functions (no account needed)
+create or replace function public.inbox_status(p_code text) returns text
+language sql security definer set search_path = public as $$
+  select coalesce((select case when is_paused then 'paused' else 'ok' end from inboxes where code = lower(btrim(p_code))), 'missing');
+$$;
+
+create or replace function public.send_anonymous_message(p_code text, p_content text, p_token text) returns void
+language plpgsql security definer set search_path = public, extensions as $$
+declare
+  owner uuid; paused boolean; text_clean text := btrim(p_content);
+  fwd text := nullif(btrim(split_part(coalesce(current_setting('request.headers', true)::jsonb ->> 'x-forwarded-for', ''), ',', 1)), '');
+  h text;
+begin
+  if text_clean is null or char_length(text_clean) not between 1 and 500 then raise exception 'bad_message'; end if;
+  if p_token is null or p_token !~ '^[a-f0-9]{32}$' then raise exception 'bad_token'; end if;
+  select user_id, is_paused into owner, paused from inboxes where code = lower(btrim(p_code));
+  if owner is null then raise exception 'inbox_not_found'; end if;
+  if paused then raise exception 'inbox_paused'; end if;
+  h := case when fwd is null then 'u:' || gen_random_uuid()::text
+            else encode(digest(fwd || ':' || owner::text || ':whispa', 'sha256'), 'hex') end;
+  -- A blocked sender sees success, so they can't tell they were blocked.
+  if exists (select 1 from blocked_senders where inbox_user_id = owner and ip_hash = h) then return; end if;
+  perform pg_advisory_xact_lock(hashtextextended('inbox:' || owner::text, 0));
+  -- Spam limits: 5 per sender per 10 minutes, and 30 per inbox per hour.
+  if (select count(*) from anon_messages where inbox_user_id = owner and ip_hash = h and created_at > now() - interval '10 minutes') >= 5
+     or (select count(*) from anon_messages where inbox_user_id = owner and created_at > now() - interval '1 hour') >= 30 then
+    raise exception 'too_many';
+  end if;
+  insert into anon_messages (inbox_user_id, content, token_hash, ip_hash)
+  values (owner, text_clean, encode(digest(p_token, 'sha256'), 'hex'), h);
+end $$;
+
+-- The sender's browser asks for replies using the secrets it kept; returns the position in the list it sent.
+create or replace function public.get_message_replies(p_tokens text[]) returns table (ord integer, reply text, replied_at timestamptz)
+language sql security definer set search_path = public, extensions as $$
+  select t.ord::int, m.reply, m.replied_at
+  from unnest((select p_tokens[1:50])) with ordinality as t(tok, ord)
+  join anon_messages m on m.token_hash = encode(digest(t.tok, 'sha256'), 'hex');
+$$;
+
+revoke all on function public.new_inbox_code() from public, anon, authenticated;
+revoke all on function public.get_my_inbox(), public.reset_inbox_link(), public.set_inbox_paused(boolean),
+  public.reply_to_message(uuid, text), public.mark_messages_read(), public.report_and_block(uuid) from public, anon;
+grant execute on function public.get_my_inbox(), public.reset_inbox_link(), public.set_inbox_paused(boolean),
+  public.reply_to_message(uuid, text), public.mark_messages_read(), public.report_and_block(uuid) to authenticated;
+revoke all on function public.inbox_status(text), public.send_anonymous_message(text, text, text), public.get_message_replies(text[]) from public;
+grant execute on function public.inbox_status(text), public.send_anonymous_message(text, text, text), public.get_message_replies(text[]) to anon, authenticated;

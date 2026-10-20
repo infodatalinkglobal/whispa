@@ -279,7 +279,7 @@ export default function ConfessionCard({
           <span className="tabular-nums">{commentCount}</span>
         </button>
         <span className="ml-auto flex items-center gap-2">
-          <ShareImageButton confessionId={confession.id} />
+          <ShareImageButton url={`/api/card/${confession.id}`} filename="whispa-confession.png" />
           <ShareLink campus={confession.campus} content={confession.content} />
         </span>
       </div>

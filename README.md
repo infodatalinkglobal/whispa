@@ -25,6 +25,12 @@ npm run dev
   (`lib/ranking.ts`).
 - **Reactions:** 😂 😭 😳 🔥 ❤️, one per account per post, changeable. Counts are stored on the post.
 - **Daily question:** a new prompt every day from a built-in list (`lib/prompts.ts`), plus writing starters in the composer.
+- **Anonymous inbox (NGL-style):** every account has a private link `/m/<10-character code>`. Anyone who opens it
+  can send an anonymous message, no account needed. The owner reads them at `/inbox` (unread badge in the account
+  menu) and can reply, delete, share a message as an image, pause or reset the link, or report and block a sender.
+  Senders keep a secret in their own browser, so replies show up only on the phone and browser they sent from.
+  Spam limits: 5 messages per sender per 10 minutes, 30 per inbox per hour. The sender's address is stored only as a
+  salted hash (per recipient) for those limits and for blocking; it is never readable by the app.
 - **Share cards:** `/api/card/<confession id>` draws a 1080×1920 image for WhatsApp Status.
 - **Install prompt:** web app manifest, generated icons (`/icons/<size>.png`) and a tiny service worker.
 

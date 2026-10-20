@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ACTIVE_CAMPUSES, SINGLE_CAMPUS } from "@/lib/constants";
 import { ALL, PILL_OPTIONS, shortName } from "./Pills";
@@ -14,6 +15,7 @@ export default function Header({
   onLogin,
   onSignOut,
   onNewCode,
+  unread = 0,
 }: {
   campus: string;
   onPickCampus: (campus: string) => void;
@@ -22,6 +24,8 @@ export default function Header({
   onLogin: () => void;
   onSignOut: () => void;
   onNewCode: () => void;
+  // Unread anonymous messages in the account's inbox.
+  unread?: number;
 }) {
   const [menu, setMenu] = useState<Menu>(null);
   const toggle = (m: Exclude<Menu, null>) => setMenu((cur) => (cur === m ? null : m));
@@ -75,10 +79,16 @@ export default function Header({
           aria-label={loggedIn ? "Account menu" : "Log in"}
           aria-haspopup={loggedIn ? "menu" : undefined}
           aria-expanded={loggedIn ? menu === "user" : undefined}
-          className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold transition active:scale-95 ${
+          className={`relative flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold transition active:scale-95 ${
             loggedIn ? "border-accent bg-accent text-white" : "border-[#eaeaea] text-muted hover:text-ink"
           }`}
         >
+          {loggedIn && unread > 0 && (
+            <span
+              className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-hot"
+              aria-label={`${unread} unread messages`}
+            />
+          )}
           {loggedIn ? (
             (username ?? "?").charAt(0).toUpperCase()
           ) : (
@@ -122,6 +132,17 @@ export default function Header({
         >
           <p className="px-3 pb-1 pt-2 text-xs text-muted">Signed in as</p>
           <p className="truncate px-3 pb-2 text-sm font-semibold text-ink">@{username}</p>
+          <Link
+            role="menuitem"
+            href="/inbox"
+            onClick={close}
+            className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-medium text-ink hover:bg-soft"
+          >
+            <span>💌 My inbox</span>
+            {unread > 0 && (
+              <span className="rounded-full bg-hot px-2 py-0.5 text-xs font-bold tabular-nums text-white">{unread}</span>
+            )}
+          </Link>
           <button
             role="menuitem"
             onClick={() => {
